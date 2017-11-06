@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -83,11 +84,18 @@ func checkBriefcaseConfig(gitdir string) {
 	if out, err := exec.Command("git", "config", "-f", config, "-l").Output(); err != nil {
 		log.Fatal(err)
 	} else {
-		fmt.Println(string(out))
+		parseBriefcaseConfig(string(out))
 	}
 }
 
-func parseBriefcaseConfig() {
+func parseBriefcaseConfig(config string) map[string]string {
+	items := make(map[string]string)
+	re := regexp.MustCompile(`(?m:^briefcase\.(.+)=(.+)$)`)
+	for _, matches := range re.FindAllStringSubmatch(config, -1) {
+		key, value := matches[1], matches[2]
+		items[key] = value
+	}
+	return items
 }
 
 func main() {
