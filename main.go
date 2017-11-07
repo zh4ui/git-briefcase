@@ -1,8 +1,10 @@
 package main
 
 import (
-	"fmt"
+	"flag"
+	"html/template"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -25,22 +27,22 @@ const (
 func checkGitVersion() {
 }
 
-func checkBriefcaseHome() {
+func checkBriefcaseShop() {
 	briefcaseHome := DefaultBriefcaseHome
 
-	cmd := exec.Command("git", "config", "--global", "--get", "briefcase.home")
+	cmd := exec.Command("git", "config", "--global", "--get", "briefcase.shop")
 	if out, err := cmd.Output(); err == nil {
 		briefcaseHome = strings.TrimSpace(string(out))
 	}
 
 	briefcaseHome = os.ExpandEnv(briefcaseHome)
 	if !filepath.IsAbs(briefcaseHome) {
-		log.Fatalf("briefcase home \"%s\" is not an absolute path", briefcaseHome)
+		log.Fatalf("briefcase shop \"%s\" is not an absolute path", briefcaseHome)
 	}
 
 	if fileInfo, err := os.Stat(briefcaseHome); err != nil {
 		if os.IsNotExist(err) {
-			log.Fatalf("briefcase home \"%s\" doesn't exist", briefcaseHome)
+			log.Fatalf("briefcase shop \"%s\" doesn't exist", briefcaseHome)
 		} else {
 			log.Fatal(err)
 		}
@@ -64,12 +66,19 @@ func checkBriefcaseHome() {
 	}
 }
 
+type Briefcase struct {
+	gitdir string
+	params map[string]string
+}
+
+var g_briefcases []Briefcase
+
 // XXX: should not fatal for individual directory
 // XXX: should use some exeception handling
 func checkBriefcaseConfig(gitdir string) {
 	config := filepath.Join(gitdir, BriefcaseConfigInGit)
 	if fileInfo, err := os.Stat(config); err != nil {
-		// opportunity for refactoring
+		// XXX: opportunity for refactoring
 		if os.IsNotExist(err) {
 			log.Fatalf("briefcase config \"%s\" doesn't exist", config)
 		} else {
@@ -84,7 +93,8 @@ func checkBriefcaseConfig(gitdir string) {
 	if out, err := exec.Command("git", "config", "-f", config, "-l").Output(); err != nil {
 		log.Fatal(err)
 	} else {
-		parseBriefcaseConfig(string(out))
+		params := parseBriefcaseConfig(string(out))
+		g_briefcases = append(g_briefcases, Briefcase{gitdir, params})
 	}
 }
 
@@ -98,13 +108,38 @@ func parseBriefcaseConfig(config string) map[string]string {
 	return items
 }
 
-func main() {
-	out, err := exec.Command("git", "config", "--get", "user.name").Output()
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Print(string(out))
+const templateStr = `
+<html>
+<head>
+<title>QR Link Generator</title>
+</head>
+<body>
+{{.}}
+</body>
+</html>
+`
 
+var templ = template.Must(template.New("qr").Parse(templateStr))
+
+func QR(w http.ResponseWriter, req *http.Request) {
+	var resp string
+	for _, bc := range g_briefcases {
+		resp += `
+<div>` + "<h3>" + bc.gitdir + "</h3>" + `
+</div>`
+	}
+	templ.Execute(w, resp)
+}
+
+func main() {
 	checkGitVersion()
-	checkBriefcaseHome()
+	checkBriefcaseShop()
+
+	var addr = flag.String("addr", ":9899", "http service address") // b=98, c=99
+	flag.Parse()
+	http.Handle("/", http.HandlerFunc(QR))
+	err := http.ListenAndServe(*addr, nil)
+	if err != nil {
+		log.Fatal("ListenAndServe:", err)
+	}
 }
