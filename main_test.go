@@ -4,7 +4,6 @@ import "testing"
 
 func TestParseBriefcaseConfig(t *testing.T) {
 	const config = `
-briefcase.packagename=python3.6
 briefcase.displayname=Python 3.6
 briefcase.objectsbase=HEAD
 briefcase.indexpage=index.html`
@@ -22,7 +21,6 @@ briefcase.indexpage=index.html`
 			t.Error(k, "not found")
 		}
 	}
-	kvtest("packagename", "python3.6")
 	kvtest("displayname", "Python 3.6")
 	kvtest("objectsbase", "HEAD")
 	kvtest("indexpage", "index.html")

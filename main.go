@@ -13,10 +13,10 @@ import (
 )
 
 const (
-	ErrorDirIsNotGitRepo = iota
-	ErrorDirIsNotBriefcase
-	ErrorBriefcaseHasNoPackageName
-	ErrorBriefcaseHasNoObjectsBase
+	ErrDirIsNotGitRepo = iota
+	ErrDirIsNotBriefcase
+	ErrBriefcaseHasNoPackageName
+	ErrBriefcaseHasNoObjectsBase
 )
 
 const (
@@ -24,7 +24,17 @@ const (
 	BriefcaseConfigInGit = "briefcase/config"
 )
 
+// should abstract the invocation of git into a function or so
+func GitCmd(args ...string) {
+}
+
 func checkGitVersion() {
+	if out, err := exec.Command("git", "--version").Output(); err != nil {
+		log.Fatal(err)
+	} else {
+		// currently no use is made out of the output
+		_ = out
+	}
 }
 
 func checkBriefcaseShop() {
@@ -108,37 +118,43 @@ func parseBriefcaseConfig(config string) map[string]string {
 	return items
 }
 
-const templateStr = `
-<html>
-<head>
-<title>QR Link Generator</title>
-</head>
-<body>
-{{.}}
-</body>
-</html>
-`
+var tmpl = template.New("git-briefcase")
 
-var templ = template.Must(template.New("qr").Parse(templateStr))
+//var tmpl = template.Must(template.New("shop").Parse(templateStr))
 
-func QR(w http.ResponseWriter, req *http.Request) {
-	var resp string
-	for _, bc := range g_briefcases {
-		resp += `
-<div>` + "<h3>" + bc.gitdir + "</h3>" + `
-</div>`
+func bfcIndex(w http.ResponseWriter, req *http.Request) {
+	tmpl.ExecuteTemplate(w, "index.html", "hello!")
+}
+
+var (
+	httpAddr    = flag.String("http", ":9899", "http service address") // b=98, c=99
+	templateDir = flag.String("templates", "", "load templates and other web resources from this directory")
+)
+
+func handleFlags() {
+	flag.Parse()
+
+	if *templateDir != "" {
+		if abspath, err := filepath.Abs(*templateDir); err != nil {
+			log.Fatal(err)
+		} else {
+			*templateDir = abspath
+			log.Printf("Using templateDir: %s\n", abspath)
+		}
 	}
-	templ.Execute(w, resp)
+
+	indexPage := filepath.Join(*templateDir, "index.html")
+	tmpl = template.Must(tmpl.ParseFiles(indexPage))
 }
 
 func main() {
+	handleFlags()
+
 	checkGitVersion()
 	checkBriefcaseShop()
 
-	var addr = flag.String("addr", ":9899", "http service address") // b=98, c=99
-	flag.Parse()
-	http.Handle("/", http.HandlerFunc(QR))
-	err := http.ListenAndServe(*addr, nil)
+	http.Handle("/", http.HandlerFunc(bfcIndex))
+	err := http.ListenAndServe(*httpAddr, nil)
 	if err != nil {
 		log.Fatal("ListenAndServe:", err)
 	}
