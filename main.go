@@ -12,6 +12,7 @@ import (
 	"strings"
 )
 
+// XXX
 const (
 	ErrDirIsNotGitRepo = iota
 	ErrDirIsNotBriefcase
@@ -20,9 +21,25 @@ const (
 )
 
 const (
-	DefaultBriefcaseHome = "$HOME/.gitbriefcase"
-	BriefcaseConfigInGit = "briefcase/config"
+	DefaultBriefcaseHome          = "$HOME/.gitbriefcase"
+	PathOfBriefcaseConfigInGitDir = "briefcase/config"
 )
+
+// Briefcase represents a git repo that is configured as a breifcase and cont
+type Briefcase struct {
+	gitdir string
+	docs   map[string]bool
+	params map[string]string
+}
+
+// NewBriefcase ...
+func NewBriefcase(gitdir string) *Briefcase {
+	bfc := &Briefcase{}
+	bfc.gitdir = gitdir
+	bfc.docs = make(map[string]bool, 8)
+	bfc.params = make(map[string]string, 50)
+	return bfc
+}
 
 // should abstract the invocation of git into a function or so
 func GitCmd(args ...string) {
@@ -37,85 +54,98 @@ func checkGitVersion() {
 	}
 }
 
-func checkBriefcaseShop() {
-	briefcaseHome := DefaultBriefcaseHome
+func changeToBriefcaseHome() {
+	bfcHome := DefaultBriefcaseHome
 
-	cmd := exec.Command("git", "config", "--global", "--get", "briefcase.shop")
+	cmd := exec.Command("git", "config", "--global", "--get", "briefcase.home")
 	if out, err := cmd.Output(); err == nil {
-		briefcaseHome = strings.TrimSpace(string(out))
+		bfcHome = strings.TrimSpace(string(out))
 	}
 
-	briefcaseHome = os.ExpandEnv(briefcaseHome)
-	if !filepath.IsAbs(briefcaseHome) {
-		log.Fatalf("briefcase shop \"%s\" is not an absolute path", briefcaseHome)
+	bfcHome = os.ExpandEnv(bfcHome)
+	if !filepath.IsAbs(bfcHome) {
+		log.Fatalf("briefcase shop \"%s\" is not an absolute path", bfcHome)
 	}
 
-	if fileInfo, err := os.Stat(briefcaseHome); err != nil {
+	if fileInfo, err := os.Stat(bfcHome); err != nil {
 		if os.IsNotExist(err) {
-			log.Fatalf("briefcase shop \"%s\" doesn't exist", briefcaseHome)
+			log.Fatalf("briefcase shop \"%s\" doesn't exist", bfcHome)
 		} else {
 			log.Fatal(err)
 		}
 	} else {
 		if !fileInfo.IsDir() {
-			log.Fatalf("\"%s\" is not a directory", briefcaseHome)
+			log.Fatalf("\"%s\" is not a directory", bfcHome)
 		}
 	}
 
-	if err := os.Chdir(briefcaseHome); err != nil {
+	if err := os.Chdir(bfcHome); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func checkBriefcases() (bfcList []*Briefcase) {
+
+	changeToBriefcaseHome()
 
 	if gitdirs, err := filepath.Glob("*.git"); err != nil {
 		// The only possible returned error is ErrBadPattern, when pattern is malformed.
 		log.Fatal(err)
 	} else {
 		for _, gitdir := range gitdirs {
-			checkBriefcaseConfig(gitdir)
+			bfc := NewBriefcase(gitdir)
+			if checkBriefcaseConfig(bfc) {
+				// TODO (add checks for parameters)
+				panic("to be continued")
+			}
+			bfcList = append(bfcList, bfc)
 		}
 	}
-}
 
-type Briefcase struct {
-	gitdir string
-	params map[string]string
+	return
 }
-
-var g_briefcases []Briefcase
 
 // XXX: should not fatal for individual directory
 // XXX: should use some exeception handling
-func checkBriefcaseConfig(gitdir string) {
-	config := filepath.Join(gitdir, BriefcaseConfigInGit)
-	if fileInfo, err := os.Stat(config); err != nil {
-		// XXX: opportunity for refactoring
+func checkBriefcaseConfig(bfc *Briefcase) bool {
+	configFile := filepath.Join(bfc.gitdir, PathOfBriefcaseConfigInGitDir)
+
+	if fileInfo, err := os.Stat(configFile); err != nil {
 		if os.IsNotExist(err) {
-			log.Fatalf("briefcase config \"%s\" doesn't exist", config)
+			log.Printf("briefcase config \"%s\" doesn't exist\n", configFile)
 		} else {
-			log.Fatal(err)
+			log.Println(err)
 		}
+		return false
+	} else if !fileInfo.Mode().IsRegular() {
+		log.Fatalf("\"%s\" is not a regular file", configFile)
+		return false
 	} else {
-		if !fileInfo.Mode().IsRegular() {
-			log.Fatalf("\"%s\" is not a regular file", config)
-		}
+		// everything is fine.
 	}
 
-	if out, err := exec.Command("git", "config", "-f", config, "-l").Output(); err != nil {
-		log.Fatal(err)
+	if out, err := exec.Command("git", "config", "-f", configFile, "-l").Output(); err == nil {
+		log.Println(err)
+		return false
 	} else {
-		params := parseBriefcaseConfig(string(out))
-		g_briefcases = append(g_briefcases, Briefcase{gitdir, params})
+		parseBriefcaseConfig(string(out), bfc)
+		return true
 	}
 }
 
-func parseBriefcaseConfig(config string) map[string]string {
-	items := make(map[string]string)
-	re := regexp.MustCompile(`(?m:^briefcase\.(.+)=(.+)$)`)
+func parseBriefcaseConfig(config string, bfc *Briefcase) {
+	re := regexp.MustCompile(`(?m:^briefcase(\..+)?(\..+)=(.+)$)`)
 	for _, matches := range re.FindAllStringSubmatch(config, -1) {
-		key, value := matches[1], matches[2]
-		items[key] = value
+		subsection, name, value := matches[1], matches[2], matches[3]
+		if subsection == "" {
+			// in git-config, subsection should contains no newline
+			// thus here uses "dot newline" to denote the default subsection
+			// since it is not a valid section name
+			subsection = ".\n"
+		}
+		bfc.docs[subsection] = true
+		bfc.params[subsection+name] = value
 	}
-	return items
 }
 
 var tmpl = template.New("git-briefcase")
@@ -148,10 +178,13 @@ func handleFlags() {
 }
 
 func main() {
+	checkGitVersion()
+
 	handleFlags()
 
-	checkGitVersion()
-	checkBriefcaseShop()
+	bfcList := checkBriefcases()
+
+	_ = bfcList
 
 	http.Handle("/", http.HandlerFunc(bfcIndex))
 	err := http.ListenAndServe(*httpAddr, nil)

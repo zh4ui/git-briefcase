@@ -6,22 +6,32 @@ func TestParseBriefcaseConfig(t *testing.T) {
 	const config = `
 briefcase.displayname=Python 3.6
 briefcase.objectsbase=HEAD
-briefcase.indexpage=index.html`
-	items := parseBriefcaseConfig(config)
-	kvtest := func(k, v string) {
-		if item, ok := items[k]; ok {
-			if item != v {
+briefcase.indexpage=index.html
+briefcase.hello.indexpage=open.html`
+
+	bfc := NewBriefcase("")
+	parseBriefcaseConfig(config, bfc)
+	if _, ok := bfc.docs[".\n"]; !ok {
+		t.Error("default section not found")
+	}
+	if _, ok := bfc.docs[".hello"]; !ok {
+		t.Error("hello subsection not found")
+	}
+	testParams := func(k, v string) {
+		if param, ok := bfc.params[k]; ok {
+			if param != v {
 				t.Error(
 					k,
 					"expected", v,
-					"got", item,
+					"got", param,
 				)
 			}
 		} else {
 			t.Error(k, "not found")
 		}
 	}
-	kvtest("displayname", "Python 3.6")
-	kvtest("objectsbase", "HEAD")
-	kvtest("indexpage", "index.html")
+	testParams(".\n.displayname", "Python 3.6")
+	testParams(".\n.objectsbase", "HEAD")
+	testParams(".\n.indexpage", "index.html")
+	testParams(".hello.indexpage", "open.html")
 }
