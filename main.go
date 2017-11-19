@@ -28,7 +28,6 @@ const (
 // Briefcase represents a git repo that is configured as a breifcase and cont
 type Briefcase struct {
 	gitdir string
-	docs   map[string]bool
 	params map[string]string
 }
 
@@ -36,13 +35,8 @@ type Briefcase struct {
 func NewBriefcase(gitdir string) *Briefcase {
 	bfc := &Briefcase{}
 	bfc.gitdir = gitdir
-	bfc.docs = make(map[string]bool, 8)
 	bfc.params = make(map[string]string, 50)
 	return bfc
-}
-
-// should abstract the invocation of git into a function or so
-func GitCmd(args ...string) {
 }
 
 func checkGitVersion() {
@@ -93,22 +87,20 @@ func checkBriefcases() (bfcList []*Briefcase) {
 		log.Fatal(err)
 	} else {
 		for _, gitdir := range gitdirs {
+			conf, ok := readConfig(gitdir)
+			newBfcList := parseConfig(conf)
+			bfcList = append(newBfcList)
 			bfc := NewBriefcase(gitdir)
 			if checkBriefcaseConfig(bfc) {
-				// TODO (add checks for parameters)
-				panic("to be continued")
+				bfcList = append(bfcList, bfc)
 			}
-			bfcList = append(bfcList, bfc)
 		}
 	}
-
 	return
 }
 
-// XXX: should not fatal for individual directory
-// XXX: should use some exeception handling
-func checkBriefcaseConfig(bfc *Briefcase) bool {
-	configFile := filepath.Join(bfc.gitdir, PathOfBriefcaseConfigInGitDir)
+func readConfig(gitdir string) (string, bool) {
+	configFile := filepath.Join(gitdir, PathOfBriefcaseConfigInGitDir)
 
 	if fileInfo, err := os.Stat(configFile); err != nil {
 		if os.IsNotExist(err) {
@@ -116,35 +108,34 @@ func checkBriefcaseConfig(bfc *Briefcase) bool {
 		} else {
 			log.Println(err)
 		}
-		return false
+		return "", false
 	} else if !fileInfo.Mode().IsRegular() {
 		log.Fatalf("\"%s\" is not a regular file", configFile)
-		return false
+		return "", false
 	} else {
-		// everything is fine.
-	}
-
-	if out, err := exec.Command("git", "config", "-f", configFile, "-l").Output(); err == nil {
-		log.Println(err)
-		return false
-	} else {
-		parseBriefcaseConfig(string(out), bfc)
-		return true
+		if out, err := exec.Command("git", "config", "-f", configFile, "-l").Output(); err != nil {
+			log.Println(err)
+			return "", false
+		} else {
+			return string(out), false
+		}
 	}
 }
 
-func parseBriefcaseConfig(config string, bfc *Briefcase) {
+// ConfigItem ...
+type ConfigItem struct {
+	subsection, name, value string
+}
+
+func parseConfig(config string) {
+	var items []ConfigItem
 	re := regexp.MustCompile(`(?m:^briefcase(\..+)?(\..+)=(.+)$)`)
 	for _, matches := range re.FindAllStringSubmatch(config, -1) {
 		subsection, name, value := matches[1], matches[2], matches[3]
-		if subsection == "" {
-			// in git-config, subsection should contains no newline
-			// thus here uses "dot newline" to denote the default subsection
-			// since it is not a valid section name
-			subsection = ".\n"
+		if subsection != "" {
+			subsection = subsection[1:] // exclude the leading '.'
 		}
-		bfc.docs[subsection] = true
-		bfc.params[subsection+name] = value
+		items = append(items, ConfigItem{subsection, name, value})
 	}
 }
 
