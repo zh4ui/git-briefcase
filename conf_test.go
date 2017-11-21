@@ -1,16 +1,31 @@
 package main
 
-import "testing"
+import (
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"testing"
+)
 
-func TestParseConfig(t *testing.T) {
-	const config = `
-briefcase.displayname=Python 3.6
+const configSample = `
+[briefcase]
+displayName = Python 3.6
+objectsBase = HEAD
+indexPage = index.html
+[briefcase "hello"]
+indexPage = open.html`
+
+const outputSample = `briefcase.displayname=Python 3.6
 briefcase.objectsbase=HEAD
 briefcase.indexpage=index.html
-briefcase.hello.indexpage=open.html`
+briefcase.hello.indexpage=open.html
+`
 
-	itemdict := make(ConfigItemDict)
-	parseConfig(config, itemdict)
+func TestParseConfig(t *testing.T) {
+	itemdict := make(DocItemMap)
+	parseConfig(outputSample, itemdict)
 
 	compString := func(got, expected string, description string) {
 		if got != expected {
@@ -38,5 +53,47 @@ briefcase.hello.indexpage=open.html`
 	checkConfig(itemdict)
 	if _, ok := itemdict["hello"]; ok {
 		t.Error("hello subsection should have been removed")
+	}
+}
+
+func MustGit(args ...string) string {
+	cmd := exec.Command("git", args...)
+	out, err := cmd.Output()
+	if err != nil {
+		panic(err)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+func MustTempDir(dir, prefix string) string {
+	dir, err := ioutil.TempDir(dir, prefix)
+	if err != nil {
+		panic(err)
+	}
+	return dir
+}
+
+func Must(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
+func TestReadConfig(t *testing.T) {
+	theRootDir := MustGit("rev-parse", "--show-toplevel")
+	theGitDir := filepath.Join(theRootDir, ".git")
+	tempDir := MustTempDir(theGitDir, "test")
+	defer os.RemoveAll(tempDir)
+
+	confFile := filepath.Join(tempDir, "config")
+	Must(ioutil.WriteFile(confFile, []byte(configSample), 0666))
+
+	GitBriefcaseDir = filepath.Base(tempDir)
+	config, ok := readConfig(theRootDir)
+	if !ok {
+		t.Fatal("failed to read config in", theRootDir)
+	}
+	if config != outputSample {
+		t.Fatalf("expected:\n %#v\ngot:\n%#v\n", outputSample, config)
 	}
 }

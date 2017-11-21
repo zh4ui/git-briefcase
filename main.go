@@ -58,7 +58,7 @@ func handleFlags() {
 func main() {
 	checkGitVersion()
 	handleFlags()
-	changeToBriefcaseHome()
+	changeToBriefcaseHomeDir()
 	scanGitRepos()
 
 	http.Handle("/", http.HandlerFunc(bfcIndex))

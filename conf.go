@@ -10,22 +10,29 @@ import (
 )
 
 const (
-	DefaultBriefcaseHome        = "$HOME/.gitbriefcase"
-	PathBriefcaseConfigInGitDir = "briefcase/config"
+	DefaultBriefcaseHome = "$HOME/.gitbriefcase"
 )
 
-// ConfigItem contains parameters of a briefcase
-type ConfigItem struct {
+var GitBriefcaseDir = "briefcase"
+
+// DocFeed ...
+type DocFeed struct {
+	gitdir string
+	items  []*DocItem
+}
+
+// DocItem contains parameters of a briefcase
+type DocItem struct {
 	subsectionName string
 	displayName    string
 	objectsBase    string
 	indexPage      string
 }
 
-// ConfigItemDict ...
-type ConfigItemDict map[string]*ConfigItem
+// DocItemMap ...
+type DocItemMap map[string]*DocItem
 
-func changeToBriefcaseHome() {
+func changeToBriefcaseHomeDir() {
 	bfcHome := DefaultBriefcaseHome
 
 	cmd := exec.Command("git", "config", "--global", "--get", "briefcase.home")
@@ -55,7 +62,7 @@ func changeToBriefcaseHome() {
 	}
 }
 
-func scanGitRepos() (bfcList []*Briefcase) {
+func scanGitRepos() (allDocs []DocFeed) {
 	if gitdirs, err := filepath.Glob("*.git"); err != nil {
 		// The only possible returned error is ErrBadPattern, when pattern is malformed.
 		log.Fatal(err)
@@ -64,24 +71,31 @@ func scanGitRepos() (bfcList []*Briefcase) {
 			if config, ok := readConfig(gitdir); !ok {
 				continue
 			} else {
-				itemDict := make(ConfigItemDict)
-				parseConfig(config, itemDict)
-				checkConfig(itemDict)
-				// TODO: make a list of briefcase
+				itemMap := make(DocItemMap)
+				parseConfig(config, itemMap)
+				checkConfig(itemMap)
+				docFeed := DocFeed{}
+				docFeed.gitdir = gitdir
+				docFeed.items = make([]*DocItem, len(itemMap))
+				for name := range itemMap {
+					docFeed.items = append(docFeed.items, itemMap[name])
+				}
+				allDocs = append(allDocs, docFeed)
 			}
 		}
 	}
 	return
 }
 
+// TODO rename gitdir to rootdir
 func readConfig(gitdir string) (string, bool) {
-	configFile := filepath.Join(gitdir, PathBriefcaseConfigInGitDir)
+	configFile := filepath.Join(gitdir, ".git", GitBriefcaseDir, "config")
 
 	if fileInfo, err := os.Stat(configFile); err != nil {
 		if os.IsNotExist(err) {
 			log.Printf("briefcase config \"%s\" doesn't exist\n", configFile)
 		} else {
-			log.Println(err)
+			log.Println(configFile, err)
 		}
 		return "", false
 	} else if !fileInfo.Mode().IsRegular() {
@@ -89,15 +103,15 @@ func readConfig(gitdir string) (string, bool) {
 		return "", false
 	} else {
 		if out, err := exec.Command("git", "config", "-f", configFile, "-l").Output(); err != nil {
-			log.Println(err)
+			log.Println(configFile, err)
 			return "", false
 		} else {
-			return string(out), false
+			return string(out), true
 		}
 	}
 }
 
-func parseConfig(config string, itemDict ConfigItemDict) {
+func parseConfig(config string, itemMap DocItemMap) {
 
 	re := regexp.MustCompile(`(?m:^briefcase(\..+)?(\..+)=(.+)$)`)
 
@@ -110,27 +124,27 @@ func parseConfig(config string, itemDict ConfigItemDict) {
 		} else {
 			subsection = subsection[1:] // exclude the leading '.'
 		}
-		configItem, ok := itemDict[subsection]
+		docItem, ok := itemMap[subsection]
 		if !ok {
-			configItem = &ConfigItem{}
-			configItem.subsectionName = subsection
-			itemDict[subsection] = configItem
+			docItem = &DocItem{}
+			docItem.subsectionName = subsection
+			itemMap[subsection] = docItem
 		}
 		switch key {
 		case ".displayname":
-			configItem.displayName = value
+			docItem.displayName = value
 		case ".objectsbase":
-			configItem.objectsBase = value
+			docItem.objectsBase = value
 		case ".indexpage":
-			configItem.indexPage = value
+			docItem.indexPage = value
 		default:
 			log.Printf("unrecognized configuration \"%s\"\n", matches[0])
 		}
 	}
 }
 
-func checkConfig(itemDict ConfigItemDict) {
-	for name, item := range itemDict {
+func checkConfig(itemMap DocItemMap) {
+	for name, item := range itemMap {
 		ok := true
 		if item.objectsBase == "" {
 			log.Printf("%s has no objectsBase\n", name)
@@ -141,7 +155,7 @@ func checkConfig(itemDict ConfigItemDict) {
 			ok = false
 		}
 		if !ok {
-			delete(itemDict, name)
+			delete(itemMap, name)
 			log.Printf("removing %s from the configuration", name)
 		}
 	}
