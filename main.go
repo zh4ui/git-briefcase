@@ -17,20 +17,6 @@ const (
 	ErrBriefcaseHasNoObjectsBase
 )
 
-// Briefcase represents a git repo that is configured as a breifcase and cont
-type Briefcase struct {
-	gitdir string
-	params map[string]string
-}
-
-// NewBriefcase ...
-func NewBriefcase(gitdir string) *Briefcase {
-	bfc := &Briefcase{}
-	bfc.gitdir = gitdir
-	bfc.params = make(map[string]string, 50)
-	return bfc
-}
-
 func checkGitVersion() {
 	if out, err := exec.Command("git", "--version").Output(); err != nil {
 		log.Fatal(err)
