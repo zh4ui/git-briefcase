@@ -25,26 +25,6 @@ type ConfigItem struct {
 // ConfigItemDict ...
 type ConfigItemDict map[string]*ConfigItem
 
-/*
-// ConfigLine ...
-type ConfigLine struct {
-	subsection, name, value string
-}
-
-// ConfigLineSorter ...
-type ConfigLineSorter []ConfigLine
-
-func (items ConfigLineSorter) Len() int      { return len(items) }
-func (items ConfigLineSorter) Swap(i, j int) { items[i], items[j] = items[j], items[i] }
-func (items ConfigLineSorter) Less(i, j int) bool {
-	if strings.Compare(items[i].subsection, items[j].subsection) < 0 && strings.Compare(items[i].name, items[j].name) < 0 {
-		return true
-	} else {
-		return false
-	}
-}
-*/
-
 func changeToBriefcaseHome() {
 	bfcHome := DefaultBriefcaseHome
 
