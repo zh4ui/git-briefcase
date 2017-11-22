@@ -17,14 +17,6 @@ const (
 	ErrBriefcaseHasNoObjectsBase
 )
 
-func checkGitVersion() {
-	if out, err := exec.Command("git", "--version").Output(); err != nil {
-		log.Fatal(err)
-	} else {
-		// currently no use is made out of the output
-		_ = out
-	}
-}
 
 var tmpl = template.New("git-briefcase")
 
@@ -56,7 +48,6 @@ func handleFlags() {
 }
 
 func main() {
-	checkGitVersion()
 	handleFlags()
 	changeToBriefcaseHomeDir()
 	scanGitRepos()
