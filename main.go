@@ -5,7 +5,6 @@ import (
 	"html/template"
 	"log"
 	"net/http"
-	"os/exec"
 	"path/filepath"
 )
 
@@ -16,7 +15,6 @@ const (
 	ErrBriefcaseHasNoPackageName
 	ErrBriefcaseHasNoObjectsBase
 )
-
 
 var tmpl = template.New("git-briefcase")
 

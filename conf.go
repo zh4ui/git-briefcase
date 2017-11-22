@@ -13,7 +13,10 @@ const (
 	DefaultBriefcaseHome = "$HOME/.gitbriefcase"
 )
 
-var GitBriefcaseDir = "briefcase"
+var (
+	GitBriefcaseHomeDir = DefaultBriefcaseHome
+	GitBriefcaseConfDir = "briefcase"
+)
 
 // DocFeed ...
 type DocFeed struct {
@@ -23,8 +26,8 @@ type DocFeed struct {
 
 // DocItem contains parameters of a briefcase
 type DocItem struct {
-	subsectionName string
-	displayName    string
+	subsectionName string "optional"
+	displayName    string "optional"
 	objectsBase    string
 	indexPage      string
 }
@@ -87,9 +90,9 @@ func scanGitRepos() (allDocs []DocFeed) {
 	return
 }
 
-// TODO rename gitdir to rootdir
+// TODO: use panic to handle error
 func readConfig(gitdir string) (string, bool) {
-	configFile := filepath.Join(gitdir, ".git", GitBriefcaseDir, "config")
+	configFile := filepath.Join(gitdir, GitBriefcaseConfDir, "config")
 
 	if fileInfo, err := os.Stat(configFile); err != nil {
 		if os.IsNotExist(err) {
@@ -102,7 +105,8 @@ func readConfig(gitdir string) (string, bool) {
 		log.Fatalf("\"%s\" is not a regular file", configFile)
 		return "", false
 	} else {
-		if out, err := exec.Command("git", "config", "-f", configFile, "-l").Output(); err != nil {
+		cmd := exec.Command("git", "config", "-f", configFile, "-l")
+		if out, err := cmd.Output(); err != nil {
 			log.Println(configFile, err)
 			return "", false
 		} else {
@@ -121,6 +125,7 @@ func parseConfig(config string, itemMap DocItemMap) {
 			// \n is not allowed in subsection name in git-config
 			// it is hereby used to denote empty subsection
 			subsection = "\n"
+			// TODO: stop doing it
 		} else {
 			subsection = subsection[1:] // exclude the leading '.'
 		}

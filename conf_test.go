@@ -88,10 +88,10 @@ func TestReadConfig(t *testing.T) {
 	confFile := filepath.Join(tempDir, "config")
 	Must(ioutil.WriteFile(confFile, []byte(configSample), 0666))
 
-	GitBriefcaseDir = filepath.Base(tempDir)
-	config, ok := readConfig(theRootDir)
+	GitBriefcaseConfDir = filepath.Base(tempDir)
+	config, ok := readConfig(theGitDir)
 	if !ok {
-		t.Fatal("failed to read config in", theRootDir)
+		t.Fatal("failed to read config in", tempDir)
 	}
 	if config != outputSample {
 		t.Fatalf("expected:\n %#v\ngot:\n%#v\n", outputSample, config)

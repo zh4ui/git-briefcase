@@ -1,5 +1,6 @@
 
 Next:
+- adopt the style of git-submodule
 - feed the template
 
 Future
