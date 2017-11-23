@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"strings"
 )
 
 const (
@@ -14,7 +13,6 @@ const (
 )
 
 var (
-	GitBriefcaseHomeDir = DefaultBriefcaseHome
 	GitBriefcaseConfDir = "briefcase"
 )
 
@@ -34,61 +32,6 @@ type DocItem struct {
 
 // DocItemMap ...
 type DocItemMap map[string]*DocItem
-
-func changeToBriefcaseHomeDir() {
-	bfcHome := DefaultBriefcaseHome
-
-	cmd := exec.Command("git", "config", "--global", "--get", "briefcase.home")
-	if out, err := cmd.Output(); err == nil {
-		bfcHome = strings.TrimSpace(string(out))
-	}
-
-	bfcHome = os.ExpandEnv(bfcHome)
-	if !filepath.IsAbs(bfcHome) {
-		log.Fatalf("briefcase shop \"%s\" is not an absolute path", bfcHome)
-	}
-
-	if fileInfo, err := os.Stat(bfcHome); err != nil {
-		if os.IsNotExist(err) {
-			log.Fatalf("briefcase shop \"%s\" doesn't exist", bfcHome)
-		} else {
-			log.Fatal(err)
-		}
-	} else {
-		if !fileInfo.IsDir() {
-			log.Fatalf("\"%s\" is not a directory", bfcHome)
-		}
-	}
-
-	if err := os.Chdir(bfcHome); err != nil {
-		log.Fatal(err)
-	}
-}
-
-func scanGitRepos() (allDocs []DocFeed) {
-	if gitdirs, err := filepath.Glob("*.git"); err != nil {
-		// The only possible returned error is ErrBadPattern, when pattern is malformed.
-		log.Fatal(err)
-	} else {
-		for _, gitdir := range gitdirs {
-			if config, ok := readConfig(gitdir); !ok {
-				continue
-			} else {
-				itemMap := make(DocItemMap)
-				parseConfig(config, itemMap)
-				checkConfig(itemMap)
-				docFeed := DocFeed{}
-				docFeed.gitdir = gitdir
-				docFeed.items = make([]*DocItem, len(itemMap))
-				for name := range itemMap {
-					docFeed.items = append(docFeed.items, itemMap[name])
-				}
-				allDocs = append(allDocs, docFeed)
-			}
-		}
-	}
-	return
-}
 
 // TODO: use panic to handle error
 func readConfig(gitdir string) (string, bool) {
