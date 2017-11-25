@@ -47,8 +47,8 @@ func handleFlags() {
 
 func main() {
 	handleFlags()
-	changeToBriefcaseHomeDir()
-	scanGitRepos()
+	// changeToBriefcaseHomeDir()
+	// scanGitRepos()
 
 	http.Handle("/", http.HandlerFunc(bfcIndex))
 	err := http.ListenAndServe(*httpAddr, nil)

@@ -13,3 +13,12 @@ func checkGitVersion() {
 		_ = out
 	}
 }
+
+func isGitRepo(gitdir string) bool {
+	_, err := exec.Command("git", "--git-dir", gitdir, "rev-parse").Output()
+	if err != nil {
+		return false
+	} else {
+		return true
+	}
+}
