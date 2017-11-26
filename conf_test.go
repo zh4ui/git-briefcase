@@ -1,101 +1,64 @@
 package main
 
-/*
 import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"strings"
 	"testing"
 )
 
 const configSample = `
-[briefcase]
-displayName = Python 3.6
-objectsBase = HEAD
-indexPage = index.html
-[briefcase "hello"]
-indexPage = open.html`
-
-const outputSample = `briefcase.displayname=Python 3.6
-briefcase.objectsbase=HEAD
-briefcase.indexpage=index.html
-briefcase.hello.indexpage=open.html
+[DocPack "python3.6"]
+	indexPage = index.html
+[DocPack "hello"]
+	indexPage = welcome.html
 `
 
+func ohno(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
+func readConfigSample() string {
+	tempf, err := ioutil.TempFile("", "docpack")
+	ohno(err)
+	_, err = tempf.WriteString(configSample)
+	ohno(err)
+	tempf.Close()
+	defer os.Remove(tempf.Name())
+
+	out, err := exec.Command("git", "config", "-f", tempf.Name(), "-l").Output()
+	ohno(err)
+
+	return string(out)
+}
+
+func compString(t *testing.T, got, expected string, description string) {
+	if got != expected {
+		t.Error(
+			description,
+			"expected", expected,
+			"got", got,
+		)
+	}
+	return
+}
+
 func TestParseConfig(t *testing.T) {
-	itemdict := make(DocItemMap)
-	parseConfig(outputSample, itemdict)
+	gb := GitBriefcase{}
+	config := readConfigSample()
+	gb.parseConfig(config)
 
-	compString := func(got, expected string, description string) {
-		if got != expected {
-			t.Error(
-				description,
-				"expected", expected,
-				"got", got,
-			)
-		}
-	}
-	if item, ok := itemdict["\n"]; !ok {
-		t.Error("default section not found")
+	if docpack, ok := gb.Docs["python3.6"]; !ok {
+		t.Errorf("DocPack \"%s\" not found\n", docpack)
 	} else {
-		compString(item.subsectionName, "\n", "\\n.subsectionName")
-		compString(item.displayName, "Python 3.6", "\\n.displayName")
-		compString(item.objectsBase, "HEAD", "\\n.objectsBase")
-		compString(item.indexPage, "index.html", "\\n.indexPage")
+		compString(t, docpack.IndexPage, "index.html", "docpack.indexPage")
 	}
-	if item, ok := itemdict["hello"]; !ok {
-		t.Error("hello subsection not found")
+
+	if docpack, ok := gb.Docs["hello"]; !ok {
+		t.Errorf("DocPack \"%s\" not found\n", docpack)
 	} else {
-		compString(item.indexPage, "open.html", "hello.indexPage")
-	}
-
-	checkConfig(itemdict)
-	if _, ok := itemdict["hello"]; ok {
-		t.Error("hello subsection should have been removed")
+		compString(t, docpack.IndexPage, "welcome.html", "docpack.indexPage")
 	}
 }
-
-func MustGit(args ...string) string {
-	cmd := exec.Command("git", args...)
-	out, err := cmd.Output()
-	if err != nil {
-		panic(err)
-	}
-	return strings.TrimSpace(string(out))
-}
-
-func MustTempDir(dir, prefix string) string {
-	dir, err := ioutil.TempDir(dir, prefix)
-	if err != nil {
-		panic(err)
-	}
-	return dir
-}
-
-func Must(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
-
-func TestReadConfig(t *testing.T) {
-	theRootDir := MustGit("rev-parse", "--show-toplevel")
-	theGitDir := filepath.Join(theRootDir, ".git")
-	tempDir := MustTempDir(theGitDir, "test")
-	defer os.RemoveAll(tempDir)
-
-	confFile := filepath.Join(tempDir, "config")
-	Must(ioutil.WriteFile(confFile, []byte(configSample), 0666))
-
-	GitBriefcaseConfDir = filepath.Base(tempDir)
-	config, ok := readConfig(theGitDir)
-	if !ok {
-		t.Fatal("failed to read config in", tempDir)
-	}
-	if config != outputSample {
-		t.Fatalf("expected:\n %#v\ngot:\n%#v\n", outputSample, config)
-	}
-}
-*/
