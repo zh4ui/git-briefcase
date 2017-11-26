@@ -15,17 +15,23 @@ const (
 )
 
 type DocPack struct {
-	indexPage string
+	IndexPage string
 }
 
 type GitBriefcase struct {
-	home string
-	docs map[string]*DocPack // map path to *DocPack
+	Home string
+	Docs map[string]*DocPack // map path to *DocPack
 }
 
-func (g *GitBriefcase) Init() {
+func NewGitBriefcase() *GitBriefcase {
+	gb := &GitBriefcase{}
+	gb.init()
+	return gb
+}
+
+func (g *GitBriefcase) init() {
 	g.findHome()
-	if err := os.Chdir(g.home); err != nil {
+	if err := os.Chdir(g.Home); err != nil {
 		log.Fatal(err)
 	}
 	config := g.readConfig()
@@ -40,34 +46,35 @@ func (g *GitBriefcase) findHome() {
 		log.Println(err)
 	}
 
-	g.home = strings.TrimSpace(string(out))
-	if g.home != "" {
-		log.Println("git-breifcase home is configured as:", g.home)
+	g.Home = strings.TrimSpace(string(out))
+	if g.Home != "" {
+		log.Print("git-breifcase home is globally configured as:", g.Home)
 	} else {
-		g.home = os.ExpandEnv(GitBriefcaseDefaultHome)
-		log.Println("git-breifcase home is set to default:", g.home)
+		log.Print("git-breifcase home is set to default:", g.Home)
 	}
 
-	if !filepath.IsAbs(g.home) {
-		log.Fatalf("git-briefcase home \"%s\" is not an absolute path\n", g.home)
+	g.Home = os.ExpandEnv(GitBriefcaseDefaultHome)
+
+	if !filepath.IsAbs(g.Home) {
+		log.Fatalf("git-briefcase home \"%s\" is not an absolute path\n", g.Home)
 	}
 
-	if fileInfo, err := os.Stat(g.home); err != nil {
+	if fileInfo, err := os.Stat(g.Home); err != nil {
 		if os.IsNotExist(err) {
-			log.Fatalf("git-briefcase home \"%s\" doesn't exist", g.home)
+			log.Fatalf("git-briefcase home \"%s\" doesn't exist", g.Home)
 		} else {
-			log.Fatal(g.home, err)
+			log.Fatal(g.Home, err)
 		}
 	} else {
 		if !fileInfo.IsDir() {
-			log.Fatalf("git-briefcase home \"%s\" is not a directory", g.home)
+			log.Fatalf("git-briefcase home \"%s\" is not a directory", g.Home)
 		}
 	}
 }
 
 func (g *GitBriefcase) readConfig() string {
 
-	configPath := filepath.Join(g.home, GitBriefcaseConfigFile)
+	configPath := filepath.Join(g.Home, GitBriefcaseConfigFile)
 
 	fileInfo, err := os.Stat(configPath)
 
@@ -86,7 +93,7 @@ func (g *GitBriefcase) readConfig() string {
 	cmd := exec.Command("git", "config", "-f", configPath, "-l")
 	out, err := cmd.Output()
 	if err != nil {
-		log.Fatalln(configPath, err)
+		log.Fatal(configPath, err)
 	}
 
 	return string(out)
@@ -96,18 +103,18 @@ func (g *GitBriefcase) parseConfig(config string) {
 
 	re := regexp.MustCompile(`(?m:^docpack\.(.+)\.(.+)=(.+)$)`)
 
-	g.docs = make(map[string]*DocPack)
+	g.Docs = make(map[string]*DocPack)
 
 	for _, matches := range re.FindAllStringSubmatch(config, -1) {
 		subsection, param, value := matches[1], matches[2], matches[3]
-		docpack := g.docs[subsection]
+		docpack := g.Docs[subsection]
 		if docpack == nil {
 			docpack = &DocPack{}
-			g.docs[subsection] = docpack
+			g.Docs[subsection] = docpack
 		}
 		switch param {
 		case "indexpage":
-			docpack.indexPage = value
+			docpack.IndexPage = value
 		default:
 			log.Printf("unrecognized configuration \"%s\"\n", matches[0])
 		}
@@ -115,9 +122,10 @@ func (g *GitBriefcase) parseConfig(config string) {
 }
 
 func (g *GitBriefcase) checkDocPacks() {
-	for gitdir, docpack := range g.docs {
+
+	for gitdir, docpack := range g.Docs {
 		ok := true
-		if docpack.indexPage == "" {
+		if docpack.IndexPage == "" {
 			log.Printf("indexPage not specified for \"%s\"\n", gitdir)
 			ok = false
 		}
@@ -127,7 +135,7 @@ func (g *GitBriefcase) checkDocPacks() {
 		}
 		if !ok {
 			log.Printf("removing invalid DocPack \"%s\"\n", gitdir)
-			delete(g.docs, gitdir)
+			delete(g.Docs, gitdir)
 		}
 	}
 }

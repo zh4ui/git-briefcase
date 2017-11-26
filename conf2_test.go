@@ -50,15 +50,15 @@ func TestParseConfig(t *testing.T) {
 	config := readConfigSample()
 	gb.parseConfig(config)
 
-	if docpack, ok := gb.docs["python3.6"]; !ok {
+	if docpack, ok := gb.Docs["python3.6"]; !ok {
 		t.Errorf("DocPack \"%s\" not found\n", docpack)
 	} else {
-		compString(t, docpack.indexPage, "index.html", "docpack.indexPage")
+		compString(t, docpack.IndexPage, "index.html", "docpack.indexPage")
 	}
 
-	if docpack, ok := gb.docs["hello"]; !ok {
+	if docpack, ok := gb.Docs["hello"]; !ok {
 		t.Errorf("DocPack \"%s\" not found\n", docpack)
 	} else {
-		compString(t, docpack.indexPage, "welcome.html", "docpack.indexPage")
+		compString(t, docpack.IndexPage, "welcome.html", "docpack.indexPage")
 	}
 }

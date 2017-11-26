@@ -1,11 +1,9 @@
 
 Next:
-- feed the template
+- serve /<parameters>
 
-Future
-- maybe godoc's vfs is worth noting
+Improvement Areas
 - use go generate to compile the source code of static files into the binary
+- maybe godoc's vfs is worth noting
 - how to reload server when code changes?
-
-Problem
-- read stderr from git command
+  - maybe githubnemo/CompileDaemon is worth noting
