@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -16,7 +17,10 @@ func NewGitBriefcaseServer() *GitBriefcaseServer {
 	s := &GitBriefcaseServer{}
 	s.gb = NewGitBriefcase()
 	s.tmpl = template.New("git-briefcase")
+
 	http.Handle("/", s)
+	// TODO: serve static file here
+
 	return s
 }
 
@@ -31,6 +35,17 @@ func (s *GitBriefcaseServer) Run(servingAddr string, templateDir string) {
 	}
 }
 
-func (s *GitBriefcaseServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (s *GitBriefcaseServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		errorHandler(w, r, http.StatusNotFound)
+		return
+	}
 	s.tmpl.ExecuteTemplate(w, "index.html", s.gb)
+}
+
+func errorHandler(w http.ResponseWriter, r *http.Request, status int) {
+	w.WriteHeader(status)
+	if status == http.StatusNotFound {
+		fmt.Fprint(w, "custom 404")
+	}
 }

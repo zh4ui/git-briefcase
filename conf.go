@@ -18,6 +18,12 @@ type DocPack struct {
 	IndexPage string
 }
 
+func (d *DocPack) GetServingUrlPath(gitdir string) string {
+	// XXX need to check whether this is safe
+	p := filepath.Join(gitdir, d.IndexPage)
+	return filepath.ToSlash(filepath.Clean(p))
+}
+
 type GitBriefcase struct {
 	Home string
 	Docs map[string]*DocPack // map path to *DocPack
