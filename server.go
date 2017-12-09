@@ -62,10 +62,30 @@ func (s *GitBriefcaseServer) docpackHandler(w http.ResponseWriter, r *http.Reque
 		fmt.Fprintf(w, `docpack "%s" not found`, html.EscapeString(docname))
 		return
 	}
-	_ = subpath
-	_ = docpack
 
-	fmt.Fprintf(w, "Hello, %q", html.EscapeString(r.URL.Path))
+	if subpath == "" || subpath == "/" {
+		subpath = docpack.IndexPage
+	} else {
+		// exclude leading slash
+		subpath = subpath[1:]
+	}
+
+	gitdir := filepath.Join(GitBriefcaseReposDir, docname+".git")
+	gitobj, found := GitGetHashByPath(gitdir, "HEAD", subpath)
+	if !found {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, `git object "%s" not found`, html.EscapeString(subpath))
+		return
+	}
+
+	content, ok := GitGetBlobContent(gitdir, gitobj.Hash)
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, `hash content "%s" not found`, html.EscapeString(gitobj.Hash))
+		return
+	}
+
+	fmt.Fprint(w, string(content))
 }
 
 func (s *GitBriefcaseServer) errorHandler(w http.ResponseWriter, r *http.Request, status int) {

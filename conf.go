@@ -128,7 +128,7 @@ func checkDocPack(docname string, docpack *DocPack) (errors []string) {
 
 	gitdir := filepath.Join(GitBriefcaseReposDir, docname+".git")
 
-	if !isGitRepo(gitdir) {
+	if !GitIsRepo(gitdir) {
 		problem := fmt.Sprintf("not a valid git repo: \"%s\"\n", gitdir)
 		errors = append(errors, problem)
 	}
