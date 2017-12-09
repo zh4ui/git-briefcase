@@ -44,21 +44,3 @@ func compString(t *testing.T, got, expected string, description string) {
 	}
 	return
 }
-
-func TestParseConfig(t *testing.T) {
-	gb := GitBriefcase{}
-	config := readConfigSample()
-	gb.parseConfig(config)
-
-	if docpack, ok := gb.Docs["python3.6"]; !ok {
-		t.Errorf("DocPack \"%s\" not found\n", docpack)
-	} else {
-		compString(t, docpack.IndexPage, "index.html", "docpack.indexPage")
-	}
-
-	if docpack, ok := gb.Docs["hello"]; !ok {
-		t.Errorf("DocPack \"%s\" not found\n", docpack)
-	} else {
-		compString(t, docpack.IndexPage, "welcome.html", "docpack.indexPage")
-	}
-}

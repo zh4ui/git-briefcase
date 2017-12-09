@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
+	"html"
 	"html/template"
 	"log"
 	"net/http"
 	"path/filepath"
+	"regexp"
 )
 
 type GitBriefcaseServer struct {
@@ -18,7 +20,8 @@ func NewGitBriefcaseServer() *GitBriefcaseServer {
 	s.gb = NewGitBriefcase()
 	s.tmpl = template.New("git-briefcase")
 
-	http.Handle("/", s)
+	http.HandleFunc("/docpack/", s.docpackHandler)
+	http.HandleFunc("/", s.rootHandler)
 	// TODO: serve static file here
 
 	return s
@@ -35,15 +38,37 @@ func (s *GitBriefcaseServer) Run(servingAddr string, templateDir string) {
 	}
 }
 
-func (s *GitBriefcaseServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *GitBriefcaseServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
-		errorHandler(w, r, http.StatusNotFound)
+		s.errorHandler(w, r, http.StatusNotFound)
 		return
 	}
 	s.tmpl.ExecuteTemplate(w, "index.html", s.gb)
 }
 
-func errorHandler(w http.ResponseWriter, r *http.Request, status int) {
+func (s *GitBriefcaseServer) docpackHandler(w http.ResponseWriter, r *http.Request) {
+	pattern := regexp.MustCompile(`/docpack/([^/]+)(/.*)?`)
+	matches := pattern.FindStringSubmatch(r.URL.Path)
+	if matches == nil {
+		// the only nil case is "/docpack/"
+		// redirect to "/"
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+	docname, subpath := matches[1], matches[2]
+	docpack, present := s.gb.Docs[docname]
+	if !present {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, `docpack "%s" not found`, html.EscapeString(docname))
+		return
+	}
+	_ = subpath
+	_ = docpack
+
+	fmt.Fprintf(w, "Hello, %q", html.EscapeString(r.URL.Path))
+}
+
+func (s *GitBriefcaseServer) errorHandler(w http.ResponseWriter, r *http.Request, status int) {
 	w.WriteHeader(status)
 	if status == http.StatusNotFound {
 		fmt.Fprint(w, "custom 404")
