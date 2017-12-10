@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"html"
 	"html/template"
@@ -8,6 +9,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"regexp"
+	"time"
 )
 
 type GitBriefcaseServer struct {
@@ -47,6 +49,8 @@ func (s *GitBriefcaseServer) rootHandler(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *GitBriefcaseServer) docpackHandler(w http.ResponseWriter, r *http.Request) {
+	log.Print(r.Method, " ", r.URL)
+
 	pattern := regexp.MustCompile(`/docpack/([^/]+)(/.*)?`)
 	matches := pattern.FindStringSubmatch(r.URL.Path)
 	if matches == nil {
@@ -85,7 +89,8 @@ func (s *GitBriefcaseServer) docpackHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	fmt.Fprint(w, string(content))
+	reader := bytes.NewReader(content)
+	http.ServeContent(w, r, subpath, time.Now(), reader)
 }
 
 func (s *GitBriefcaseServer) errorHandler(w http.ResponseWriter, r *http.Request, status int) {
