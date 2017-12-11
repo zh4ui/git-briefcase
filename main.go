@@ -27,6 +27,6 @@ func handleFlags() {
 
 func main() {
 	handleFlags()
-	server := NewGitBriefcaseServer()
+	server := NewGitDocityServer()
 	server.Run(*httpAddr, *templateDir)
 }

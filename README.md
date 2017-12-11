@@ -1,1 +1,1 @@
-# git-briefcase
+# git-docity

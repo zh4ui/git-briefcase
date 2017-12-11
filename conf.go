@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	GitBriefcaseDefaultHome = "$HOME/.gitbriefcase"
-	GitBriefcaseReposDir    = "repos"
+	GitDocityDefaultHome = "$HOME/.gitdocity"
+	GitDocityReposDir    = "repos"
 )
 
 type DocPack struct {
@@ -26,28 +26,28 @@ func (d *DocPack) GetServingUrlPath(gitdir string) string {
 	return filepath.ToSlash(filepath.Clean(p))
 }
 
-type GitBriefcase struct {
+type GitDocity struct {
 	Home string
 	// docs are organized using map, and indexed by name
 	Docs        map[string]*DocPack
 	InvalidDocs map[string][]string
 }
 
-func NewGitBriefcase() *GitBriefcase {
-	g := &GitBriefcase{}
+func NewGitDocity() *GitDocity {
+	g := &GitDocity{}
 	g.Docs = make(map[string]*DocPack)
 	g.InvalidDocs = make(map[string][]string)
 	g.init()
 	return g
 }
 
-func (g *GitBriefcase) init() {
+func (g *GitDocity) init() {
 	g.getHome()
 	g.readDocPacks()
 }
 
-func (g *GitBriefcase) getHome() {
-	cmd := exec.Command("git", "config", "--global", "--get", "briefcase.home")
+func (g *GitDocity) getHome() {
+	cmd := exec.Command("git", "config", "--global", "--get", "docity.home")
 	out, err := cmd.Output()
 	if err != nil {
 		log.Println(err)
@@ -55,26 +55,26 @@ func (g *GitBriefcase) getHome() {
 
 	g.Home = strings.TrimSpace(string(out))
 	if g.Home != "" {
-		log.Print("git-breifcase home is globally configured as:", g.Home)
+		log.Print("git-docity home is globally configured as:", g.Home)
 	} else {
-		log.Print("git-breifcase home is set to default:", g.Home)
+		log.Print("git-docity home is set to default:", g.Home)
 	}
 
-	g.Home = os.ExpandEnv(GitBriefcaseDefaultHome)
+	g.Home = os.ExpandEnv(g.Home)
 
 	if !filepath.IsAbs(g.Home) {
-		log.Fatalf("git-briefcase home \"%s\" is not an absolute path", g.Home)
+		log.Fatalf("git-docity home \"%s\" is not an absolute path", g.Home)
 	}
 
 	if fileInfo, err := os.Stat(g.Home); err != nil {
 		if os.IsNotExist(err) {
-			log.Fatalf("git-briefcase home \"%s\" doesn't exist", g.Home)
+			log.Fatalf("git-docity home \"%s\" doesn't exist", g.Home)
 		} else {
 			log.Fatal(g.Home, err)
 		}
 	} else {
 		if !fileInfo.IsDir() {
-			log.Fatalf("git-briefcase home \"%s\" is not a directory", g.Home)
+			log.Fatalf("git-docity home \"%s\" is not a directory", g.Home)
 		}
 	}
 
@@ -83,9 +83,9 @@ func (g *GitBriefcase) getHome() {
 	}
 }
 
-func (g *GitBriefcase) readDocPacks() {
+func (g *GitDocity) readDocPacks() {
 
-	// Should be in GitBriefcase Home
+	// Should be in GitDocity Home
 	jsonfiles, err := filepath.Glob("*.json")
 
 	if err != nil {
@@ -126,7 +126,7 @@ func (g *GitBriefcase) readDocPacks() {
 
 func checkDocPack(docname string, docpack *DocPack) (errors []string) {
 
-	gitdir := filepath.Join(GitBriefcaseReposDir, docname+".git")
+	gitdir := filepath.Join(GitDocityReposDir, docname+".git")
 
 	if !GitIsRepo(gitdir) {
 		problem := fmt.Sprintf("not a valid git repo: \"%s\"\n", gitdir)

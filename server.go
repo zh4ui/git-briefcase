@@ -12,15 +12,15 @@ import (
 	"time"
 )
 
-type GitBriefcaseServer struct {
-	gb   *GitBriefcase
+type GitDocityServer struct {
+	gd   *GitDocity
 	tmpl *template.Template
 }
 
-func NewGitBriefcaseServer() *GitBriefcaseServer {
-	s := &GitBriefcaseServer{}
-	s.gb = NewGitBriefcase()
-	s.tmpl = template.New("git-briefcase")
+func NewGitDocityServer() *GitDocityServer {
+	s := &GitDocityServer{}
+	s.gd = NewGitDocity()
+	s.tmpl = template.New("git-docity")
 
 	http.HandleFunc("/docpack/", s.docpackHandler)
 	http.HandleFunc("/", s.rootHandler)
@@ -29,7 +29,7 @@ func NewGitBriefcaseServer() *GitBriefcaseServer {
 	return s
 }
 
-func (s *GitBriefcaseServer) Run(servingAddr string, templateDir string) {
+func (s *GitDocityServer) Run(servingAddr string, templateDir string) {
 
 	indexPage := filepath.Join(templateDir, "index.html")
 	s.tmpl = template.Must(s.tmpl.ParseFiles(indexPage))
@@ -40,15 +40,15 @@ func (s *GitBriefcaseServer) Run(servingAddr string, templateDir string) {
 	}
 }
 
-func (s *GitBriefcaseServer) rootHandler(w http.ResponseWriter, r *http.Request) {
+func (s *GitDocityServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		s.errorHandler(w, r, http.StatusNotFound)
 		return
 	}
-	s.tmpl.ExecuteTemplate(w, "index.html", s.gb)
+	s.tmpl.ExecuteTemplate(w, "index.html", s.gd)
 }
 
-func (s *GitBriefcaseServer) docpackHandler(w http.ResponseWriter, r *http.Request) {
+func (s *GitDocityServer) docpackHandler(w http.ResponseWriter, r *http.Request) {
 	log.Print(r.Method, " ", r.URL)
 
 	pattern := regexp.MustCompile(`/docpack/([^/]+)(/.*)?`)
@@ -60,7 +60,7 @@ func (s *GitBriefcaseServer) docpackHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	docname, subpath := matches[1], matches[2]
-	docpack, present := s.gb.Docs[docname]
+	docpack, present := s.gd.Docs[docname]
 	if !present {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, `docpack "%s" not found`, html.EscapeString(docname))
@@ -74,7 +74,7 @@ func (s *GitBriefcaseServer) docpackHandler(w http.ResponseWriter, r *http.Reque
 		subpath = subpath[1:]
 	}
 
-	gitdir := filepath.Join(GitBriefcaseReposDir, docname+".git")
+	gitdir := filepath.Join(GitDocityReposDir, docname+".git")
 	gitobj, found := GitGetHashByPath(gitdir, "HEAD", subpath)
 	if !found {
 		w.WriteHeader(http.StatusNotFound)
@@ -93,7 +93,7 @@ func (s *GitBriefcaseServer) docpackHandler(w http.ResponseWriter, r *http.Reque
 	http.ServeContent(w, r, subpath, time.Now(), reader)
 }
 
-func (s *GitBriefcaseServer) errorHandler(w http.ResponseWriter, r *http.Request, status int) {
+func (s *GitDocityServer) errorHandler(w http.ResponseWriter, r *http.Request, status int) {
 	w.WriteHeader(status)
 	if status == http.StatusNotFound {
 		fmt.Fprint(w, "custom 404")
