@@ -90,7 +90,9 @@ func (s *GitDocityServer) docpackHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	reader := bytes.NewReader(content)
-	http.ServeContent(w, r, subpath, time.Now(), reader)
+	w.Header().Set("Etag", `"`+gitobj.Hash+`"`)
+	w.Header().Set("Cache-Control", "private, max-age=86400") // cache +1d
+	http.ServeContent(w, r, subpath, time.Time{}, reader)
 }
 
 func (s *GitDocityServer) errorHandler(w http.ResponseWriter, r *http.Request, status int) {
