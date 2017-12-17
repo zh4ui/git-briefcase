@@ -10,17 +10,22 @@ import (
 	"path/filepath"
 	"regexp"
 	"time"
+
+	cache "github.com/patrickmn/go-cache"
 )
 
 type GitDocityServer struct {
-	gd   *GitDocity
-	tmpl *template.Template
+	docity     *GitDocity
+	tmpl       *template.Template
+	hotGitObjs *cache.Cache
 }
 
 func NewGitDocityServer() *GitDocityServer {
 	s := &GitDocityServer{}
-	s.gd = NewGitDocity()
+	s.docity = NewGitDocity()
 	s.tmpl = template.New("git-docity")
+	// 5 minutes expiration and 60 minutes purge period
+	s.hotGitObjs = cache.New(10*time.Minute, 60*time.Minute)
 
 	http.HandleFunc("/docpack/", s.docpackHandler)
 	http.HandleFunc("/", s.rootHandler)
@@ -45,7 +50,7 @@ func (s *GitDocityServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 		s.errorHandler(w, r, http.StatusNotFound)
 		return
 	}
-	s.tmpl.ExecuteTemplate(w, "index.html", s.gd)
+	s.tmpl.ExecuteTemplate(w, "index.html", s.docity)
 }
 
 func (s *GitDocityServer) docpackHandler(w http.ResponseWriter, r *http.Request) {
@@ -60,7 +65,7 @@ func (s *GitDocityServer) docpackHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	docname, subpath := matches[1], matches[2]
-	docpack, present := s.gd.Docs[docname]
+	docpack, present := s.docity.Docs[docname]
 	if !present {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, `docpack "%s" not found`, html.EscapeString(docname))
@@ -75,11 +80,34 @@ func (s *GitDocityServer) docpackHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	gitdir := filepath.Join(GitDocityReposDir, docname+".git")
-	gitobj, found := GitGetHashByPath(gitdir, "HEAD", subpath)
-	if !found {
-		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, `git object "%s" not found`, html.EscapeString(subpath))
-		return
+
+	objpath := filepath.Join(gitdir, subpath)
+	obj, found := s.hotGitObjs.Get(objpath)
+
+	var gitobj GitObject
+
+	if found {
+		gitobj, found = obj.(GitObject)
+		if !found {
+			panic("not an instance of GitObject")
+		}
+
+		etag := r.Header.Get("If-None-Match")
+
+		// etag should be a 40-byte hash enclosed by `"`.
+		if len(etag) == 42 && etag[1:41] == gitobj.Hash {
+			log.Println("http.StatusNotModified for Etag", etag)
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+	} else {
+		gitobj, found = GitGetHashByPath(gitdir, "HEAD", subpath)
+		if !found {
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprintf(w, `git object "%s" not found`, html.EscapeString(subpath))
+			return
+		}
+		s.hotGitObjs.Set(objpath, gitobj, cache.DefaultExpiration)
 	}
 
 	content, ok := GitGetBlobContent(gitdir, gitobj.Hash)

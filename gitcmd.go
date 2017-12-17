@@ -79,8 +79,6 @@ func GitGetBlobContent(gitdir string, hash string) ([]byte, bool) {
 
 	cmd := exec.Command("git", args...)
 
-	log.Println(cmd.Path, cmd.Args)
-
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, false
