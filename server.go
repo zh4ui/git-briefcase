@@ -36,7 +36,7 @@ func NewGitDocityServer() *GitDocityServer {
 
 func (s *GitDocityServer) Run(servingAddr string, templateDir string) {
 
-	indexPage := filepath.Join(templateDir, "index.html")
+	indexPage := filepath.Join(templateDir, "index.gohtml")
 	s.tmpl = template.Must(s.tmpl.ParseFiles(indexPage))
 
 	err := http.ListenAndServe(servingAddr, nil)
