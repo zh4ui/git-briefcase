@@ -29,6 +29,7 @@ func NewGitDocityServer() *GitDocityServer {
 
 	http.HandleFunc("/docpack/", s.docpackHandler)
 	http.HandleFunc("/", s.rootHandler)
+	http.HandleFunc("/git/", s.gitHandler)
 	// TODO: serve static file here
 
 	return s
@@ -36,7 +37,7 @@ func NewGitDocityServer() *GitDocityServer {
 
 func (s *GitDocityServer) Run(servingAddr string, templateDir string) {
 
-	indexPage := filepath.Join(templateDir, "index.gohtml")
+	indexPage := filepath.Join(templateDir, "index.tmpl")
 	s.tmpl = template.Must(s.tmpl.ParseFiles(indexPage))
 
 	err := http.ListenAndServe(servingAddr, nil)
@@ -50,7 +51,7 @@ func (s *GitDocityServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 		s.errorHandler(w, r, http.StatusNotFound)
 		return
 	}
-	s.tmpl.ExecuteTemplate(w, "index.html", s.docity)
+	s.tmpl.ExecuteTemplate(w, "index.tmpl", s.docity)
 }
 
 func (s *GitDocityServer) docpackHandler(w http.ResponseWriter, r *http.Request) {
@@ -121,6 +122,12 @@ func (s *GitDocityServer) docpackHandler(w http.ResponseWriter, r *http.Request)
 	w.Header().Set("Etag", `"`+gitobj.Hash+`"`)
 	w.Header().Set("Cache-Control", "private, max-age=86400") // cache +1d
 	http.ServeContent(w, r, subpath, time.Time{}, reader)
+}
+
+func (s *GitDocityServer) gitHandler(w http.ResponseWriter, r *http.Request) {
+	gitdir := filepath.Join(s.docity.Home, "repos", "filemaker16en.git")
+	gitserver := NewGitServer(gitdir)
+	gitserver.ServeHTTP(w, r)
 }
 
 func (s *GitDocityServer) errorHandler(w http.ResponseWriter, r *http.Request, status int) {

@@ -16,6 +16,8 @@ const (
 	GitDocityReposDir    = "repos"
 )
 
+var GitDocityHome string
+
 type DocPack struct {
 	IndexPage string
 }

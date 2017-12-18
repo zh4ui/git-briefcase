@@ -14,6 +14,15 @@ type GitObject struct {
 	Name string
 }
 
+func GitLookPath() string {
+	git, err := exec.LookPath("git")
+	// XXX: should find an elegant error handling solution
+	if err != nil {
+		panic(err)
+	}
+	return git
+}
+
 func GitCheckVersion() {
 	if out, err := exec.Command("git", "--version").Output(); err != nil {
 		log.Fatal(err)
