@@ -24,7 +24,7 @@ type DocPack struct {
 
 func (d *DocPack) GetServingUrlPath(gitdir string) string {
 	// XXX need to check whether this is safe
-	p := filepath.Join("docpack", gitdir, d.IndexPage)
+	p := filepath.Join("doc", gitdir, d.IndexPage)
 	return filepath.ToSlash(filepath.Clean(p))
 }
 
