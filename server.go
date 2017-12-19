@@ -17,27 +17,32 @@ import (
 type GitDocityServer struct {
 	docity     *GitDocity
 	tmpl       *template.Template
+	staticDir  string
 	hotGitObjs *cache.Cache
 }
 
-func NewGitDocityServer() *GitDocityServer {
+func NewGitDocityServer(staticDir string) *GitDocityServer {
 	s := &GitDocityServer{}
+	s.staticDir = staticDir
 	s.docity = NewGitDocity()
 	s.tmpl = template.New("git-docity")
 	// 5 minutes expiration and 60 minutes purge period
 	s.hotGitObjs = cache.New(10*time.Minute, 60*time.Minute)
 
+	assetsDir := filepath.Join(s.staticDir, "assets")
+	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(assetsDir))))
+
 	http.HandleFunc("/docpack/", s.docpackHandler)
-	http.HandleFunc("/", s.rootHandler)
 	http.HandleFunc("/git/", s.gitHandler)
+	http.HandleFunc("/", s.rootHandler)
 	// TODO: serve static file here
 
 	return s
 }
 
-func (s *GitDocityServer) Run(servingAddr string, templateDir string) {
-
-	indexPage := filepath.Join(templateDir, "index.tmpl")
+func (s *GitDocityServer) Run(servingAddr string) {
+	templatesDir := filepath.Join(s.staticDir, "templates")
+	indexPage := filepath.Join(templatesDir, "index.gohtml")
 	s.tmpl = template.Must(s.tmpl.ParseFiles(indexPage))
 
 	err := http.ListenAndServe(servingAddr, nil)
@@ -51,7 +56,7 @@ func (s *GitDocityServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 		s.errorHandler(w, r, http.StatusNotFound)
 		return
 	}
-	s.tmpl.ExecuteTemplate(w, "index.tmpl", s.docity)
+	s.tmpl.ExecuteTemplate(w, "index.gohtml", s.docity)
 }
 
 func (s *GitDocityServer) docpackHandler(w http.ResponseWriter, r *http.Request) {
