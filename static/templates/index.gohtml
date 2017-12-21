@@ -1,52 +1,30 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
-    <title>Go Docity</title>
-
-    <!-- Bootstrap -->
-    <link href="/assets/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
-
-    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
-    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
-    <!--[if lt IE 9]>
-      <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
-      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Serve web documents in git.">
+    <title>Git Docity</title>
+    
+    <link rel="stylesheet" href="/assets/pure/1.0.0/pure-min.css">
+    
+    <!--[if lte IE 8]>
+        <link rel="stylesheet" href="/assets/pure/1.0.0/grids-responsive-old-ie-min.css">
     <![endif]-->
-  </head>
-  <body>
+    <!--[if gt IE 8]><!-->
+        <link rel="stylesheet" href="/assets/pure/1.0.0/grids-responsive-min.css">
+    <!--<![endif]-->
 
-  <div class="container">
-    <nav class="navbar navbar-default">
-      <div class="navbar-header">
-        <a class="navbar-brand" href="#">Git Docity</a>
-      </div>
-    </nav>
-
-    <div class="list-group">
-      <div class="list-group-item">
-        <h4 class="list-group-item-heading">filemaker16en(<a href="#">Open Help.html</a>)</h4>
-        <div class="input-group">
-          <div class="input-group-addon">Git</div>
-          <input type="text" class="form-control">
-          <div class="input-group-addon">copy</div>
+</head>
+<body>
+<div class="pure-g">
+    <div class="pure-u-2-5">
+        <div class="doc-box">
+            <h3> filemaker16en </h3>
+            <button class="pure-button"> View </button>
+            <button class="pure-button"> Configure </button>
         </div>
-      </div>
     </div>
-  </div>
-
-		{{range $gitdir, $docpack := .Docs}}
-			<div>
-				<h4> <a href="{{$docpack.GetServingUrlPath $gitdir}}">{{$gitdir}} </a></h4>
-			</div>
-		{{end}}
-
-    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
-    <script src="/assets/jquery/3.2.1/jquery.min.js"></script>
-    <!-- Include all compiled plugins (below), or include individual files as needed -->
-    <script src="/assets/bootstrap/3.3.7/js/bootstrap.min.js"></script>
-  </body>
+</div>
+</body>
 </html>
