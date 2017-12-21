@@ -18,7 +18,25 @@
     <![endif]-->
   </head>
   <body>
-    <h1>List of Documents</h1>
+
+  <div class="container">
+    <nav class="navbar navbar-default">
+      <div class="navbar-header">
+        <a class="navbar-brand" href="#">Git Docity</a>
+      </div>
+    </nav>
+
+    <div class="list-group">
+      <div class="list-group-item">
+        <h4 class="list-group-item-heading">filemaker16en(<a href="#">Open Help.html</a>)</h4>
+        <div class="input-group">
+          <div class="input-group-addon">Git</div>
+          <input type="text" class="form-control">
+          <div class="input-group-addon">copy</div>
+        </div>
+      </div>
+    </div>
+  </div>
 
 		{{range $gitdir, $docpack := .Docs}}
 			<div>
