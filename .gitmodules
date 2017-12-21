@@ -1,0 +1,3 @@
+[submodule "web"]
+	path = web
+	url = https://github.com/zh4ui/git-docity-web.git
