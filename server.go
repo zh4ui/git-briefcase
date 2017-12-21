@@ -33,6 +33,7 @@ func NewGitDocityServer(staticDir string) *GitDocityServer {
 	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(assetsDir))))
 
 	http.HandleFunc("/view/", s.viewHandler)
+	http.HandleFunc("/repo/", s.repoHandler)
 	http.HandleFunc("/git/", s.gitHandler)
 	http.HandleFunc("/", s.rootHandler)
 	// TODO: serve static file here
@@ -127,6 +128,10 @@ func (s *GitDocityServer) viewHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Etag", `"`+gitobj.Hash+`"`)
 	w.Header().Set("Cache-Control", "private, max-age=86400") // cache +1d
 	http.ServeContent(w, r, subpath, time.Time{}, reader)
+}
+
+func (s *GitDocityServer) repoHandler(w http.ResponseWriter, r *http.Request) {
+	// TODO
 }
 
 func (s *GitDocityServer) gitHandler(w http.ResponseWriter, r *http.Request) {
