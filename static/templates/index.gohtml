@@ -18,17 +18,34 @@
     <link rel="stylesheet" href="/assets/fontawesome/5.0.2/css/fa-solid.min.css">
     <link rel="stylesheet" href="/assets/fontawesome/5.0.2/css/fontawesome.min.css">
 
+    <link rel="stylesheet" href="/assets/custom/css/docity.css">
+
 </head>
 <body>
+<div class="pure-menu pure-menu-horizontal">
+    <a href="#" class="pure-menu-heading">Git Docity</a>
+    <ul class="pure-menu-list">
+        <li class="pure-menu-item"><a href="#" class="pure-menu-link">Home</a></li>
+    </ul>
+</div>
+<div class="docity">
+
 <div class="pure-g">
-    <div class="pure-u-2-5">
-        <div class="doc-box"> <!-- TODO: doc-box -->
-            <h3> filemaker16en </h3>
-            <p> Optional description </p>
-            <button class="pure-button"> <i class="fas fa-eye"></i> View </button>
-            <button class="pure-button"> <i class="fas fa-wrench"></i> Configure </button>
+    {{range $gitdir, $doc := .Docs}}
+    <div class="pure-u-1 pure-u-md-1-3">
+        <div class="docity-card">
+            <h3> {{$gitdir}} </h3>
+            <p class="description">  </p>
+            <a class="pure-button pure-button-primary" href="{{$doc.GetViewUrlPath $gitdir}}" target="_blank">
+            <i class="fas fa-eye"></i> View 
+            </a>
+            <a class="pure-button" href="{{$doc.GetConfUrlPath $gitdir}}" target="_blank">
+            <i class="fas fa-wrench"></i> Configure
+            </a>
         </div>
     </div>
+    {{end}}
+</div>
 </div>
 </body>
 </html>

@@ -22,9 +22,15 @@ type DocPack struct {
 	IndexPage string
 }
 
-func (d *DocPack) GetServingUrlPath(gitdir string) string {
+func (d *DocPack) GetViewUrlPath(gitdir string) string {
 	// XXX need to check whether this is safe
-	p := filepath.Join("doc", gitdir, d.IndexPage)
+	p := filepath.Join("view", gitdir, d.IndexPage)
+	return filepath.ToSlash(filepath.Clean(p))
+}
+
+func (d *DocPack) GetConfUrlPath(gitdir string) string {
+	// XXX need to check whether this is safe
+	p := filepath.Join("conf", gitdir)
 	return filepath.ToSlash(filepath.Clean(p))
 }
 

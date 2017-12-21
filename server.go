@@ -32,7 +32,7 @@ func NewGitDocityServer(staticDir string) *GitDocityServer {
 	assetsDir := filepath.Join(s.staticDir, "assets")
 	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(assetsDir))))
 
-	http.HandleFunc("/doc/", s.docHandler)
+	http.HandleFunc("/view/", s.viewHandler)
 	http.HandleFunc("/git/", s.gitHandler)
 	http.HandleFunc("/", s.rootHandler)
 	// TODO: serve static file here
@@ -59,13 +59,13 @@ func (s *GitDocityServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 	s.tmpl.ExecuteTemplate(w, "index.gohtml", s.docity)
 }
 
-func (s *GitDocityServer) docHandler(w http.ResponseWriter, r *http.Request) {
+func (s *GitDocityServer) viewHandler(w http.ResponseWriter, r *http.Request) {
 	log.Print(r.Method, " ", r.URL)
 
-	pattern := regexp.MustCompile(`/doc/([^/]+)(/.*)?`)
+	pattern := regexp.MustCompile(`/view/([^/]+)(/.*)?`)
 	matches := pattern.FindStringSubmatch(r.URL.Path)
 	if matches == nil {
-		// the only nil case is "/doc/"
+		// the only nil case is "/view/"
 		// redirect to "/"
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
