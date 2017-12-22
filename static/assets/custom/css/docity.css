@@ -1,34 +1,79 @@
-
 .body {
   color: #222;
 }
 
 .pure-menu {
-    background: #E0EBF5;
-    padding: .5em 0;
-    margin-bottom: 2em;
+  background: #e0ebf5;
+  padding: 0.5em 0;
+  margin-bottom: 2em;
 }
 
 .pure-menu-link {
-    padding: .5em .7em;
+  padding: 0.5em 0.7em;
 }
 
-h1, h2, h3, h4 {
-  color: #375EAB;
+.docity-title {
+  text-align: center;
 }
 
-.docity {
+h1,
+h2,
+h3,
+h4 {
+  color: #375eab;
+}
+
+.docity-body {
   margin: 0% auto;
   max-width: 980px;
 }
 
 .docity-card {
-  width: 278px;
-  border: 1px solid #222;
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+  transition: 0.3s;
   padding: 0.5em 1em;
   margin: 0.5em auto;
 }
 
+.docity-card:hover {
+  box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2);
+}
+
 .docity-card .description {
   height: 1.5em;
+}
+
+.pin-star {
+  float: right;
+}
+
+.pin-star:hover {
+  cursor: pointer;
+}
+
+.docity-left-column {
+  margin-right: 1em;
+}
+.docity-right-column {
+  margin-left: 1em;
+}
+
+.docity-pinned ul {
+    margin: 0;
+    padding: 0;
+    border: 1px solid #eee;
+
+}
+
+.docity-pinned ul li {
+    list-style-type: none;
+    position: relative;
+    padding: 12px 8px 12px 8px;
+    background: #eee;
+    font-size: 18px;
+    transition: 0.2s;
+}
+
+.docity-pinned ul li:hover {
+    background: #ddd;
 }

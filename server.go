@@ -57,6 +57,12 @@ func (s *GitDocityServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 		s.errorHandler(w, r, http.StatusNotFound)
 		return
 	}
+	// XXX re-compile tempalte for each request,
+	// should turn off for release version
+	s.tmpl = template.New("git-docity")
+	templatesDir := filepath.Join(s.staticDir, "templates")
+	indexPage := filepath.Join(templatesDir, "index.gohtml")
+	s.tmpl = template.Must(s.tmpl.ParseFiles(indexPage))
 	s.tmpl.ExecuteTemplate(w, "index.gohtml", s.docity)
 }
 

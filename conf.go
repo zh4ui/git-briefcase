@@ -19,7 +19,8 @@ const (
 var GitDocityHome string
 
 type DocPack struct {
-	IndexPage string
+	IndexPage   string
+	Description string
 }
 
 func (d *DocPack) GetViewUrlPath(gitdir string) string {
@@ -148,3 +149,5 @@ func checkDocPack(docname string, docpack *DocPack) (errors []string) {
 
 	return
 }
+
+// TODO rename docpack to docit
