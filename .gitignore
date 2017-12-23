@@ -1,4 +1,7 @@
 
 git-docity
+.sass-cache
+**/sass/*.css
+**/sass/*.css.map
 *.log
 *.sw?
