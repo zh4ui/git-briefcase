@@ -1,0 +1,96 @@
+
+.body {
+  color: #222;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  color: #375eab;
+}
+
+.pure-menu {
+  background: #e0ebf5;
+  padding: 0.5em 0;
+  margin-bottom: 2em;
+}
+
+.pure-menu-link {
+  padding: 0.5em 0.7em;
+}
+
+.docity-title {
+  text-align: center;
+}
+
+.docity-main {
+  margin: 0% auto;
+  max-width: 980px;
+
+  .docity-left-column {
+    margin-right: 1em;
+
+    .filter-input {
+      width: auto;
+    }
+
+    .filter-clear {
+      //float: right;
+    }
+  }
+
+  .docity-right-column {
+    margin-left: 1em;
+  }
+
+  .docity-column-header {
+    width: 100%;
+    margin: 0 .25em 1.5em;
+  }
+}
+
+.docity-card {
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+  transition: 0.3s;
+  padding: 0.5em 1em;
+  margin: 0.5em auto;
+
+  &:hover {
+    box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2);
+  }
+
+  .description {
+    height: 1.5em;
+  }
+}
+
+.pin-star {
+  float: right;
+
+  &:hover {
+    cursor: pointer;
+  }
+}
+
+.docity-pinned,
+.docity-recent {
+  ul {
+    margin: 0;
+    padding: 0;
+    border: 1px solid #eee;
+
+    li {
+      list-style-type: none;
+      position: relative;
+      padding: 12px 8px 12px 8px;
+      background: #eee;
+      font-size: 1em;
+      transition: 0.2s;
+    }
+
+    li:hover {
+      background: #ddd;
+    }
+  }
+}
