@@ -1,16 +1,20 @@
 package main
 
+// should promote it to a struct
+
 import (
 	"log"
 	"os/exec"
 	"regexp"
+	"strconv"
+	"syscall"
 )
 
 type GitObject struct {
-	Mode string
+	Mode uint32
 	Type string
 	Hash string
-	Size string
+	Size uint32
 	Name string
 }
 
@@ -61,6 +65,8 @@ func GitGetHashByPath(gitdir string, treeish string, pathname string) (GitObject
 	if err != nil {
 		return obj, false
 	}
+
+	// an exmpale output:
 	// `100644 blob 6a1f0e1014bc39d6fd9ee9b59df90f076dff00b8     119	Open Help.html`
 	pattern := regexp.MustCompile(`(\S+)\s+(\S+)\s+(\S+)\s+(\d+)\s+(.+)`)
 	matches := pattern.FindStringSubmatch(string(out))
@@ -68,22 +74,45 @@ func GitGetHashByPath(gitdir string, treeish string, pathname string) (GitObject
 		return obj, false
 	}
 
-	obj.Mode = matches[1]
+	u64, err := strconv.ParseUint(matches[1], 8, 32)
+	if err != nil {
+		panic(err)
+	}
+
+	obj.Mode = uint32(u64)
+
 	obj.Type = matches[2]
 	obj.Hash = matches[3]
-	obj.Size = matches[4]
+
+	u64, err = strconv.ParseUint(matches[4], 10, 32)
+	if err != nil {
+		panic(err)
+	}
+
+	obj.Size = uint32(u64)
+
 	obj.Name = matches[5]
 
 	return obj, true
 }
 
-func GitGetBlobContent(gitdir string, hash string) ([]byte, bool) {
+func isSymlink(gitobj GitObject) bool {
+	ifmt := gitobj.Mode & syscall.S_IFMT
+
+	if ifmt == syscall.S_IFLNK {
+		return true
+	} else {
+		return false
+	}
+}
+
+func GitGetBlobContent(gitdir string, gitobj GitObject) ([]byte, bool) {
 	args := []string{
 		"--git-dir",
 		gitdir,
 		"cat-file",
 		"blob",
-		hash,
+		gitobj.Hash,
 	}
 
 	cmd := exec.Command("git", args...)
@@ -92,5 +121,14 @@ func GitGetBlobContent(gitdir string, hash string) ([]byte, bool) {
 	if err != nil {
 		return nil, false
 	}
+
+	if isSymlink(gitobj) {
+		target, ok := GitGetHashByPath(gitdir, "HEAD", string(out))
+		if !ok {
+			return nil, false
+		}
+		return GitGetBlobContent(gitdir, target)
+	}
+
 	return out, true
 }

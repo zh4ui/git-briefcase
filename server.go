@@ -26,6 +26,7 @@ func NewGitDocityServer(staticDir string) *GitDocityServer {
 	s.staticDir = staticDir
 	s.docity = NewGitDocity()
 	s.tmpl = template.New("git-docity")
+
 	// 5 minutes expiration and 60 minutes purge period
 	s.hotGitObjs = cache.New(10*time.Minute, 60*time.Minute)
 
@@ -36,7 +37,6 @@ func NewGitDocityServer(staticDir string) *GitDocityServer {
 	http.HandleFunc("/repo/", s.repoHandler)
 	http.HandleFunc("/git/", s.gitHandler)
 	http.HandleFunc("/", s.rootHandler)
-	// TODO: serve static file here
 
 	return s
 }
@@ -123,7 +123,7 @@ func (s *GitDocityServer) viewHandler(w http.ResponseWriter, r *http.Request) {
 		s.hotGitObjs.Set(objpath, gitobj, cache.DefaultExpiration)
 	}
 
-	content, ok := GitGetBlobContent(gitdir, gitobj.Hash)
+	content, ok := GitGetBlobContent(gitdir, gitobj)
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, `hash content "%s" not found`, html.EscapeString(gitobj.Hash))
