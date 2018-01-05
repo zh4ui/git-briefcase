@@ -28,7 +28,7 @@ func GitConfigGetHome() string {
 	return ""
 }
 
-func GitLookPath() string {
+func MustFindGit() string {
 	git, err := exec.LookPath("git")
 	// XXX: should find an elegant error handling solution
 	if err != nil {

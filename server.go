@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/http/cgi"
 	"path/filepath"
 	"regexp"
 	"time"
@@ -25,7 +26,7 @@ func NewDocityServer(staticDir string) *DocityServer {
 	s := &DocityServer{}
 	s.staticDir = staticDir
 	s.home = NewDocityHome()
-	s.tmpl = template.New("git-docity")
+	s.tmpl = template.New("docity")
 
 	// 5 minutes expiration and 60 minutes purge period
 	s.hotGitObjs = cache.New(10*time.Minute, 60*time.Minute)
@@ -45,9 +46,10 @@ func (s *DocityServer) Run(servingAddr string) {
 	indexPage := filepath.Join(templatesDir, "index.gohtml")
 	s.tmpl = template.Must(s.tmpl.ParseFiles(indexPage))
 
+	log.Print("ListenAndServe", servingAddr)
 	err := http.ListenAndServe(servingAddr, nil)
 	if err != nil {
-		log.Fatal("ListenAndServe:", err)
+		log.Fatal(err)
 	}
 }
 
@@ -58,7 +60,7 @@ func (s *DocityServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	// XXX re-compile tempalte for each request,
 	// should turn off for release version
-	s.tmpl = template.New("git-docity")
+	s.tmpl = template.New("docity")
 	templatesDir := filepath.Join(s.staticDir, "templates")
 	indexPage := filepath.Join(templatesDir, "index.gohtml")
 	s.tmpl = template.Must(s.tmpl.ParseFiles(indexPage))
@@ -66,24 +68,11 @@ func (s *DocityServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *DocityServer) viewHandler(w http.ResponseWriter, r *http.Request) {
-	log.Print(r.Method, " ", r.URL)
 
 	if r.URL.Path == "/view/" {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
-
-	/*
-		pattern := regexp.MustCompile(`/view/([^/]+)(/.*)?`)
-		if matches == nil {
-			// the only nil case is "/view/"
-			// redirect to "/"
-			http.Redirect(w, r, "/", http.StatusSeeOther)
-			return
-		}
-		docname, subpath := matches[1], matches[2]
-		docpack, present := s.home.Docs[docname]
-	*/
 
 	pattern := regexp.MustCompile(`/view/([^/]+)(/.*)?`)
 	matches := pattern.FindStringSubmatch(r.URL.Path)
@@ -148,7 +137,27 @@ func (s *DocityServer) viewHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *DocityServer) repoHandler(w http.ResponseWriter, r *http.Request) {
-	gitdir := filepath.Join(s.home.Path, "repos", "filemaker16en.git")
-	gitserver := NewGitServer(gitdir)
-	gitserver.ServeHTTP(w, r)
+
+	if r.URL.Path == "/repo/" {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	pathTrans := filepath.Join(s.home.Path, r.URL.Path[len("/repo/"):])
+
+	env := []string{
+		"GIT_HTTP_EXPORT_ALL=",
+		"PATH_TRANSLATED=" + pathTrans,
+	}
+
+	// TODO dump cgi error to client
+	// TODO mix gitweb here
+
+	cgiHandler := cgi.Handler{
+		Path: MustFindGit(),
+		Args: []string{"http-backend"},
+		Env:  env,
+	}
+
+	cgiHandler.ServeHTTP(w, r)
 }
