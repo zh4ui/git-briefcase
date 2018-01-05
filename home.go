@@ -6,136 +6,109 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
 const (
-	GitDocityDefaultHome = "$HOME/.gitdocity"
-	GitDocityReposDir    = "repos"
+	DocityDefaultHome    = "$HOME/.gitdocity"
+	DocityConfigFileName = "docity.json"
 )
 
-var GitDocityHome string
-
-type DocPack struct {
-	IndexPage   string
-	Description string
+type DocityHome struct {
+	Path string
+	Docs map[string]*DocPack
 }
 
-func (d *DocPack) GetViewUrlPath(gitdir string) string {
-	// XXX need to check whether this is safe
-	p := filepath.Join("view", gitdir, d.IndexPage)
-	return filepath.ToSlash(filepath.Clean(p))
-}
-
-func (d *DocPack) GetConfUrlPath(gitdir string) string {
-	// XXX need to check whether this is safe
-	p := filepath.Join("conf", gitdir)
-	return filepath.ToSlash(filepath.Clean(p))
-}
-
-type GitDocity struct {
-	Home string
-	// docs are organized using map, and indexed by name
-	Docs        map[string]*DocPack
-	InvalidDocs map[string][]string
-}
-
-func NewGitDocity() *GitDocity {
-	g := &GitDocity{}
+func NewDocityHome() *DocityHome {
+	g := &DocityHome{}
 	g.Docs = make(map[string]*DocPack)
-	g.InvalidDocs = make(map[string][]string)
-	g.init()
+	g.findHome()
+	g.readDocs()
 	return g
 }
 
-func (g *GitDocity) init() {
-	g.getHome()
-	g.readDocPacks()
-}
-
-func (g *GitDocity) getHome() {
-	cmd := exec.Command("git", "config", "--global", "--get", "docity.home")
-	out, err := cmd.Output()
-	if err != nil {
-		log.Println(err)
-	}
-
-	g.Home = strings.TrimSpace(string(out))
-	if g.Home != "" {
-		log.Print("git-docity home is globally configured as:", g.Home)
+func (g *DocityHome) findHome() {
+	g.Path = GitConfigGetHome()
+	if g.Path != "" {
+		log.Print("GitDocity: home is globally configured as: ", g.Path)
 	} else {
-		log.Print("git-docity home is set to default:", g.Home)
+		log.Print("GitDocity: home is set to default: ", g.Path)
 	}
+	g.Path = os.ExpandEnv(g.Path)
 
-	g.Home = os.ExpandEnv(g.Home)
-
-	if !filepath.IsAbs(g.Home) {
-		log.Fatalf("git-docity home \"%s\" is not an absolute path", g.Home)
-	}
-
-	if fileInfo, err := os.Stat(g.Home); err != nil {
-		if os.IsNotExist(err) {
-			log.Fatalf("git-docity home \"%s\" doesn't exist", g.Home)
-		} else {
-			log.Fatal(g.Home, err)
-		}
-	} else {
-		if !fileInfo.IsDir() {
-			log.Fatalf("git-docity home \"%s\" is not a directory", g.Home)
+	checkDir := func(name, dir string) {
+		if err := statAbsDir(dir); err != nil {
+			log.Fatalf(`GitDocity: invalid %s "%s" {%s}`, name, dir, err)
 		}
 	}
+	checkDir("home", g.Path)
 
-	if err := os.Chdir(g.Home); err != nil {
-		log.Fatal(err)
+	if err := os.Chdir(g.Path); err != nil {
+		log.Fatalf(`GitDocity: failed to change directory to "%s" {%s}`, g.Path, err)
 	}
 }
 
-func (g *GitDocity) readDocPacks() {
-
-	// Should be in GitDocity Home
-	jsonfiles, err := filepath.Glob("*.json")
-
+func (g *DocityHome) readDocs() {
+	f, err := os.Open(g.Path)
 	if err != nil {
-		// the only err is ErrBadPattern, which is assumed as a programming error.
-		// panic() is used to exit the program.
-		panic(err)
+		log.Fatalf(`GitDocity: failed to open dir "%s" {%s}`, g.Path, err)
+	}
+	list, err := f.Readdir(-1)
+	f.Close()
+	if err != nil {
+		log.Fatalf(`GitDocity: failed to read dir "%s" {%s}`, g.Path, err)
 	}
 
-	for _, jsonfile := range jsonfiles {
+	// read dirs of pattern "*.git"
+	var repoInfos []os.FileInfo
+	for _, entry := range list {
+		if !entry.IsDir() {
+			continue
+		}
+		if !strings.HasSuffix(entry.Name(), ".git") {
+			continue
+		}
+		repoInfos = append(repoInfos, entry)
+	}
 
-		var errors []string
+	// sort by modtime
+	if len(repoInfos) > 0 {
+		sort.Slice(repoInfos, func(i, j int) bool {
+			a := repoInfos[i].ModTime()
+			b := repoInfos[j].ModTime()
+			return a.Before(b)
+		})
+	}
 
-		docname := strings.TrimSuffix(jsonfile, ".json")
-
-		jsonbytes, err := ioutil.ReadFile(jsonfile)
+	// read configs
+	for _, repoInfo := range repoInfos {
+		configFile := filepath.Join(repoInfo.Name(), DocityConfigFileName)
+		bytes, err := ioutil.ReadFile(configFile)
 		if err != nil {
-			errors = append(errors, err.Error())
-			g.InvalidDocs[docname] = errors
+			// XXX: should process error info
 			continue
 		}
 
 		docpack := &DocPack{}
-		err = json.Unmarshal(jsonbytes, docpack)
+		err = json.Unmarshal(bytes, docpack)
 		if err != nil {
-			errors = append(errors, err.Error())
-			g.InvalidDocs[docname] = errors
+			// XXX: should process error info
 			continue
 		}
 
-		errors = checkDocPack(docname, docpack)
+		errors := checkDocPack(repoInfo.Name(), docpack)
 		if len(errors) != 0 {
-			g.InvalidDocs[docname] = errors
+			// XXX: should process error info
+			continue
 		} else {
-			g.Docs[docname] = docpack
+			g.Docs[repoInfo.Name()] = docpack
 		}
 	}
 }
 
-func checkDocPack(docname string, docpack *DocPack) (errors []string) {
-
-	gitdir := filepath.Join(GitDocityReposDir, docname+".git")
+func checkDocPack(gitdir string, docpack *DocPack) (errors []string) {
 
 	if !GitIsRepo(gitdir) {
 		problem := fmt.Sprintf("not a valid git repo: \"%s\"\n", gitdir)
@@ -149,5 +122,3 @@ func checkDocPack(docname string, docpack *DocPack) (errors []string) {
 
 	return
 }
-
-// TODO rename docpack to docit

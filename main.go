@@ -28,6 +28,6 @@ func handleFlags() {
 
 func main() {
 	handleFlags()
-	server := NewGitDocityServer(*staticDir)
+	server := NewDocityServer(*staticDir)
 	server.Run(*httpAddr)
 }

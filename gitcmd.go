@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strconv"
+	"strings"
 	"syscall"
 )
 
@@ -16,6 +17,15 @@ type GitObject struct {
 	Hash string
 	Size uint32
 	Name string
+}
+
+func GitConfigGetHome() string {
+	cmd := exec.Command("git", "config", "--global", "--get", "docity.home")
+	out, err := cmd.Output()
+	if err == nil {
+		return strings.TrimSpace(string(out))
+	}
+	return ""
 }
 
 func GitLookPath() string {

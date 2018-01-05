@@ -14,17 +14,17 @@ import (
 	cache "github.com/patrickmn/go-cache"
 )
 
-type GitDocityServer struct {
-	docity     *GitDocity
+type DocityServer struct {
+	home       *DocityHome
 	tmpl       *template.Template
 	staticDir  string
 	hotGitObjs *cache.Cache
 }
 
-func NewGitDocityServer(staticDir string) *GitDocityServer {
-	s := &GitDocityServer{}
+func NewDocityServer(staticDir string) *DocityServer {
+	s := &DocityServer{}
 	s.staticDir = staticDir
-	s.docity = NewGitDocity()
+	s.home = NewDocityHome()
 	s.tmpl = template.New("git-docity")
 
 	// 5 minutes expiration and 60 minutes purge period
@@ -35,13 +35,12 @@ func NewGitDocityServer(staticDir string) *GitDocityServer {
 
 	http.HandleFunc("/view/", s.viewHandler)
 	http.HandleFunc("/repo/", s.repoHandler)
-	http.HandleFunc("/git/", s.gitHandler)
 	http.HandleFunc("/", s.rootHandler)
 
 	return s
 }
 
-func (s *GitDocityServer) Run(servingAddr string) {
+func (s *DocityServer) Run(servingAddr string) {
 	templatesDir := filepath.Join(s.staticDir, "templates")
 	indexPage := filepath.Join(templatesDir, "index.gohtml")
 	s.tmpl = template.Must(s.tmpl.ParseFiles(indexPage))
@@ -52,9 +51,9 @@ func (s *GitDocityServer) Run(servingAddr string) {
 	}
 }
 
-func (s *GitDocityServer) rootHandler(w http.ResponseWriter, r *http.Request) {
+func (s *DocityServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
-		s.errorHandler(w, r, http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 	// XXX re-compile tempalte for each request,
@@ -63,25 +62,39 @@ func (s *GitDocityServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 	templatesDir := filepath.Join(s.staticDir, "templates")
 	indexPage := filepath.Join(templatesDir, "index.gohtml")
 	s.tmpl = template.Must(s.tmpl.ParseFiles(indexPage))
-	s.tmpl.ExecuteTemplate(w, "index.gohtml", s.docity)
+	s.tmpl.ExecuteTemplate(w, "index.gohtml", s.home)
 }
 
-func (s *GitDocityServer) viewHandler(w http.ResponseWriter, r *http.Request) {
+func (s *DocityServer) viewHandler(w http.ResponseWriter, r *http.Request) {
 	log.Print(r.Method, " ", r.URL)
+
+	if r.URL.Path == "/view/" {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	/*
+		pattern := regexp.MustCompile(`/view/([^/]+)(/.*)?`)
+		if matches == nil {
+			// the only nil case is "/view/"
+			// redirect to "/"
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+			return
+		}
+		docname, subpath := matches[1], matches[2]
+		docpack, present := s.home.Docs[docname]
+	*/
 
 	pattern := regexp.MustCompile(`/view/([^/]+)(/.*)?`)
 	matches := pattern.FindStringSubmatch(r.URL.Path)
 	if matches == nil {
-		// the only nil case is "/view/"
-		// redirect to "/"
-		http.Redirect(w, r, "/", http.StatusSeeOther)
-		return
+		panic("impossible")
 	}
-	docname, subpath := matches[1], matches[2]
-	docpack, present := s.docity.Docs[docname]
+	docrepo, subpath := matches[1], matches[2]
+	docpack, present := s.home.Docs[docrepo]
 	if !present {
 		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, `docpack "%s" not found`, html.EscapeString(docname))
+		fmt.Fprintf(w, `docpack "%s" not found`, html.EscapeString(docrepo))
 		return
 	}
 
@@ -92,13 +105,11 @@ func (s *GitDocityServer) viewHandler(w http.ResponseWriter, r *http.Request) {
 		subpath = subpath[1:]
 	}
 
-	gitdir := filepath.Join(GitDocityReposDir, docname+".git")
-
-	objpath := filepath.Join(gitdir, subpath)
-	obj, found := s.hotGitObjs.Get(objpath)
+	objpath := filepath.Join(docrepo, subpath)
 
 	var gitobj GitObject
 
+	obj, found := s.hotGitObjs.Get(objpath)
 	if found {
 		gitobj, found = obj.(GitObject)
 		if !found {
@@ -114,7 +125,7 @@ func (s *GitDocityServer) viewHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
-		gitobj, found = GitGetHashByPath(gitdir, "HEAD", subpath)
+		gitobj, found = GitGetHashByPath(docrepo, "HEAD", subpath)
 		if !found {
 			w.WriteHeader(http.StatusNotFound)
 			fmt.Fprintf(w, `git object "%s" not found`, html.EscapeString(subpath))
@@ -123,7 +134,7 @@ func (s *GitDocityServer) viewHandler(w http.ResponseWriter, r *http.Request) {
 		s.hotGitObjs.Set(objpath, gitobj, cache.DefaultExpiration)
 	}
 
-	content, ok := GitGetBlobContent(gitdir, gitobj)
+	content, ok := GitGetBlobContent(docrepo, gitobj)
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, `hash content "%s" not found`, html.EscapeString(gitobj.Hash))
@@ -136,19 +147,8 @@ func (s *GitDocityServer) viewHandler(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, subpath, time.Time{}, reader)
 }
 
-func (s *GitDocityServer) repoHandler(w http.ResponseWriter, r *http.Request) {
-	// TODO
-}
-
-func (s *GitDocityServer) gitHandler(w http.ResponseWriter, r *http.Request) {
-	gitdir := filepath.Join(s.docity.Home, "repos", "filemaker16en.git")
+func (s *DocityServer) repoHandler(w http.ResponseWriter, r *http.Request) {
+	gitdir := filepath.Join(s.home.Path, "repos", "filemaker16en.git")
 	gitserver := NewGitServer(gitdir)
 	gitserver.ServeHTTP(w, r)
-}
-
-func (s *GitDocityServer) errorHandler(w http.ResponseWriter, r *http.Request, status int) {
-	w.WriteHeader(status)
-	if status == http.StatusNotFound {
-		fmt.Fprint(w, "custom 404")
-	}
 }
