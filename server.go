@@ -10,6 +10,7 @@ import (
 	"net/http/cgi"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
 
 	cache "github.com/patrickmn/go-cache"
@@ -34,6 +35,7 @@ func NewDocityServer(staticDir string) *DocityServer {
 	assetsDir := filepath.Join(s.staticDir, "assets")
 	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(assetsDir))))
 
+	http.HandleFunc("/gitweb/", s.gitwebHandler)
 	http.HandleFunc("/view/", s.viewHandler)
 	http.HandleFunc("/repo/", s.repoHandler)
 	http.HandleFunc("/", s.rootHandler)
@@ -87,8 +89,10 @@ func (s *DocityServer) viewHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	_ = docpack
+
 	if subpath == "" || subpath == "/" {
-		subpath = docpack.IndexPage
+		subpath = DefaultIndexPage
 	} else {
 		// exclude leading slash
 		subpath = subpath[1:]
@@ -151,7 +155,6 @@ func (s *DocityServer) repoHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// TODO dump cgi error to client
-	// TODO mix gitweb here
 
 	cgiHandler := cgi.Handler{
 		Path: MustFindGit(),
@@ -160,4 +163,23 @@ func (s *DocityServer) repoHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cgiHandler.ServeHTTP(w, r)
+}
+
+func (s *DocityServer) gitwebHandler(w http.ResponseWriter, r *http.Request) {
+
+	if strings.HasPrefix(r.URL.Path, "/gitweb/static/") {
+		http.ServeFile(w, r, filepath.Join(`/usr/local/Cellar/git/2.15.1_1/share/`, r.URL.Path))
+		return
+	}
+
+	env := []string{
+		"GITWEB_CONFIG=" + filepath.Join(s.home.Path, "gitweb.conf"),
+	}
+
+	gitweb := cgi.Handler{
+		Path: `/usr/local/Cellar/git/2.15.1_1/share/gitweb/gitweb.cgi`,
+		Root: `/gitweb/`,
+		Env:  env,
+	}
+	gitweb.ServeHTTP(w, r)
 }

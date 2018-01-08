@@ -115,10 +115,5 @@ func checkDocPack(gitdir string, docpack *DocPack) (errors []string) {
 		errors = append(errors, problem)
 	}
 
-	if docpack.IndexPage == "" {
-		problem := fmt.Sprintf("indexPage not specified for \"%s\"\n", gitdir)
-		errors = append(errors, problem)
-	}
-
 	return
 }
