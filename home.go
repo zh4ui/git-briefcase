@@ -21,8 +21,9 @@ type DocityHome struct {
 	Docs map[string]*DocPack
 }
 
-func NewDocityHome() *DocityHome {
+func NewDocityHome(path string) *DocityHome {
 	g := &DocityHome{}
+	g.Path = path
 	g.Docs = make(map[string]*DocPack)
 	g.findHome()
 	g.readDocs()
@@ -30,7 +31,7 @@ func NewDocityHome() *DocityHome {
 }
 
 func (g *DocityHome) findHome() {
-	g.Path = GitConfigGetHome()
+
 	if g.Path != "" {
 		log.Print("GitDocity: home is globally configured as: ", g.Path)
 	} else {

@@ -19,26 +19,30 @@ import (
 type DocityServer struct {
 	home       *DocityHome
 	tmpl       *template.Template
+	config     *DocityConfig
 	staticDir  string
 	hotGitObjs *cache.Cache
 }
 
 func NewDocityServer(staticDir string) *DocityServer {
 	s := &DocityServer{}
-	s.staticDir = staticDir
-	s.home = NewDocityHome()
-	s.tmpl = template.New("docity")
 
+	s.staticDir = staticDir
+	s.config = GitGetConfig()
+
+	s.home = NewDocityHome(s.config.Home)
+	s.tmpl = template.New("docity")
 	// 5 minutes expiration and 60 minutes purge period
 	s.hotGitObjs = cache.New(10*time.Minute, 60*time.Minute)
 
-	assetsDir := filepath.Join(s.staticDir, "assets")
-	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(assetsDir))))
+	http.Handle("/assets/",
+		http.StripPrefix("/assets/",
+			http.FileServer(http.Dir(filepath.Join(s.staticDir, "assets")))))
 
-	http.HandleFunc("/gitweb/", s.gitwebHandler)
-	http.HandleFunc("/view/", s.viewHandler)
-	http.HandleFunc("/repo/", s.repoHandler)
-	http.HandleFunc("/", s.rootHandler)
+	http.HandleFunc("/gitweb/", s.serveGitweb)
+	http.HandleFunc("/view/", s.serveView)
+	http.HandleFunc("/repo/", s.serveRepo)
+	http.HandleFunc("/", s.serveRoot)
 
 	return s
 }
@@ -55,7 +59,7 @@ func (s *DocityServer) Run(servingAddr string) {
 	}
 }
 
-func (s *DocityServer) rootHandler(w http.ResponseWriter, r *http.Request) {
+func (s *DocityServer) serveRoot(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -69,7 +73,7 @@ func (s *DocityServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 	s.tmpl.ExecuteTemplate(w, "index.gohtml", s.home)
 }
 
-func (s *DocityServer) viewHandler(w http.ResponseWriter, r *http.Request) {
+func (s *DocityServer) serveView(w http.ResponseWriter, r *http.Request) {
 
 	if r.URL.Path == "/view/" {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -140,7 +144,7 @@ func (s *DocityServer) viewHandler(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, subpath, time.Time{}, reader)
 }
 
-func (s *DocityServer) repoHandler(w http.ResponseWriter, r *http.Request) {
+func (s *DocityServer) serveRepo(w http.ResponseWriter, r *http.Request) {
 
 	if r.URL.Path == "/repo/" {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -165,7 +169,7 @@ func (s *DocityServer) repoHandler(w http.ResponseWriter, r *http.Request) {
 	cgiHandler.ServeHTTP(w, r)
 }
 
-func (s *DocityServer) gitwebHandler(w http.ResponseWriter, r *http.Request) {
+func (s *DocityServer) serveGitweb(w http.ResponseWriter, r *http.Request) {
 
 	if strings.HasPrefix(r.URL.Path, "/gitweb/static/") {
 		http.ServeFile(w, r, filepath.Join(`/usr/local/Cellar/git/2.15.1_1/share/`, r.URL.Path))

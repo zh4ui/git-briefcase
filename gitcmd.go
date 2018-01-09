@@ -5,11 +5,58 @@ package main
 import (
 	"log"
 	"os/exec"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
 )
+
+type DocityConfig struct {
+	Home      string "home"
+	GitwebDir string "gitwebdir"
+}
+
+func GitGetConfig() *DocityConfig {
+	conf := &DocityConfig{}
+
+	args := []string{
+		"config",
+		"--global",
+		"--get-regexp",
+		`docity\..*`,
+	}
+	cmd := exec.Command("git", args...)
+	out, err := cmd.Output()
+	if err != nil {
+		log.Fatal("failed to read docity config from global git config {%s}", err)
+	}
+	dump := strings.TrimSpace(string(out))
+
+	//	git-config's man page indicates the name of a key allows only
+	//	alphanumeric characters and -, and must start with an alphabetic
+	//	character.
+	pattern := regexp.MustCompile(`(?m)^docity\.([[:alnum:]][[:alnum:]-]*)( .+)?$`)
+	matches := pattern.FindAllStringSubmatch(dump, -1)
+
+	kv := make(map[string]string)
+	for _, submatches := range matches {
+		name, value := submatches[1], submatches[2]
+		kv[name] = strings.TrimSpace(value)
+	}
+
+	valueOfConf := reflect.ValueOf(conf)
+	for i := 0; i < valueOfConf.Elem().NumField(); i++ {
+		valueField := valueOfConf.Elem().Field(i)
+		tag := string(valueOfConf.Elem().Type().Field(i).Tag)
+		if v, ok := kv[tag]; ok {
+			valueField.SetString(v)
+			log.Printf("config: %s = %s", tag, v)
+		}
+	}
+
+	return conf
+}
 
 type GitObject struct {
 	Mode uint32
